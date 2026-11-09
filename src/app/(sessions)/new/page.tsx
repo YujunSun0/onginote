@@ -43,7 +43,7 @@ export default function NewSession() {
   }
 
   return (
-    <main className="pb-32">
+    <main className="pb-32 lg:mx-auto lg:max-w-3xl lg:pb-10">
       <div className="px-3 pt-3">
         {/* 홈, 상담 목록, 프로필 어디서 왔든 그 화면으로 돌아간다 */}
         <button
@@ -143,7 +143,7 @@ export default function NewSession() {
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-6 mx-auto max-w-[min(42rem,calc(100%-32px))]">
+      <div className="fixed inset-x-0 bottom-6 mx-auto max-w-[min(42rem,calc(100%-32px))] lg:static lg:mt-8 lg:max-w-none lg:px-5">
         <button
           onClick={start}
           disabled={busy}

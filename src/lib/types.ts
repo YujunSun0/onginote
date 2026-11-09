@@ -74,6 +74,8 @@ export interface Summary {
   situation: string;
   interpretation: string;
   todo: string[];
+  /** 할 것 체크 여부 (todo 와 같은 순서). 홈의 "상담에서 정한 할 일"에서 체크한다 */
+  todoDone?: boolean[];
   dont: string[];
   /** @deprecated 예전 정리 카드에만 있음. 사용자 말투를 모르는 초안은 도움이 안 돼서 더 만들지 않는다. */
   messageDraft?: string;

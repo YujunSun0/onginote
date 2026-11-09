@@ -63,6 +63,8 @@ export default function SummaryClient({ id }: { id: string }) {
         return;
       }
       show(j.summary, j.followUp);
+      // PC 사이드바의 정리 상태를 새로 고친다
+      window.dispatchEvent(new Event("onginote:sessions"));
     })();
   }, [id]);
 
@@ -103,7 +105,7 @@ export default function SummaryClient({ id }: { id: string }) {
     : "";
 
   return (
-    <main className="pb-12">
+    <main className="pb-12 lg:mx-auto lg:max-w-2xl">
       <div className="flex items-center justify-between px-5 pb-1.5 pt-3.5">
         <h1 className="font-display text-xl">상담 정리</h1>
         <Link href={`/chat/${id}`} aria-label="상담으로 돌아가기" className="flex h-11 w-11 items-center justify-center">

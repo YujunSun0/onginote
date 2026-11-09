@@ -32,7 +32,7 @@ export default function NewPerson() {
   const field = "h-12 w-full rounded-2xl border border-line-strong bg-white px-4 text-[15px] outline-none focus:border-accent";
 
   return (
-    <main className="px-5 pb-12 pt-3">
+    <main className="px-5 pb-12 pt-3 lg:mx-auto lg:max-w-2xl lg:pt-8">
       <button onClick={() => router.back()} aria-label="뒤로" className="-ml-2 flex h-11 w-11 items-center justify-center">
         <BackIcon />
       </button>

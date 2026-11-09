@@ -17,6 +17,7 @@ export async function GET() {
       lastText: s.messages.at(-1) ? splitBubbles(s.messages.at(-1)!.text).join(" ") : undefined,
       lastAt: s.messages.at(-1)?.at ?? s.createdAt,
       userMessages: s.messages.filter((m) => m.role === "user").length,
+      todos: s.summary?.todo.map((text, i) => ({ text, done: Boolean(s.summary!.todoDone?.[i]) })),
     })),
   );
 }

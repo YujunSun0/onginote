@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CharacterAvatar } from "@/components/CharacterFace";
-import { BackIcon, ImageIcon, MicIcon, SendIcon, SpeakerIcon, XIcon } from "@/components/Icons";
+import { BackIcon, ImageIcon, MicIcon, PanelIcon, SendIcon, SpeakerIcon, XIcon } from "@/components/Icons";
+import { PersonPanel } from "@/components/PersonPanel";
 import { CHARACTERS } from "@/lib/characters";
 import { josa, splitBubbles } from "@/lib/format";
 import { listenOnce, speak, speechRecognitionSupported, stopSpeaking } from "@/lib/speech";
@@ -67,6 +68,22 @@ export default function ChatClient({ id }: { id: string }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false); // 답변이 끝날 때까지 true
   const [usage, setUsage] = useState<number | null>(null); // 오늘 사용량 % (하루 한도 대비)
+  // PC 오른쪽 인물 패널 (넓은 화면에서만 보임). 패널은 상담을 불러온 뒤에만 그려서 서버 화면과 어긋나지 않는다.
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try {
+      return typeof window === "undefined" || localStorage.getItem("onginote:personPanel") !== "closed";
+    } catch {
+      return true;
+    }
+  });
+  function togglePanel() {
+    setPanelOpen((open) => {
+      try {
+        localStorage.setItem("onginote:personPanel", open ? "closed" : "open");
+      } catch {}
+      return !open;
+    });
+  }
   const [unlocked, setUnlocked] = useState(false); // 정리된 상담을 이어서 얘기하기로 연 경우
   const [error, setError] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(false);
@@ -227,6 +244,8 @@ export default function ChatClient({ id }: { id: string }) {
       setError(e instanceof Error ? e.message : "오류가 났어요.");
     } finally {
       setPending(false);
+      // PC 사이드바의 상담 목록과 사용량을 새로 고친다
+      window.dispatchEvent(new Event("onginote:sessions"));
     }
   }
 
@@ -331,9 +350,11 @@ export default function ChatClient({ id }: { id: string }) {
   );
 
   return (
-    <main className="flex h-dvh flex-col">
-      <header className="z-10 flex shrink-0 items-center gap-2 rounded-b-[28px] bg-peach px-3 pb-3 pt-3">
-        <Link href={backHref} aria-label="뒤로" className="flex h-11 w-11 items-center justify-center">
+    <div className="flex h-dvh">
+    <main className="flex h-dvh min-w-0 flex-1 flex-col">
+      <header className="z-10 flex shrink-0 items-center gap-2 rounded-b-[28px] bg-peach px-3 pb-3 pt-3 lg:rounded-none lg:px-6">
+        {/* PC에서는 왼쪽에 상담 목록이 있어서 뒤로 가기가 필요 없다 */}
+        <Link href={backHref} aria-label="뒤로" className="flex h-11 w-11 items-center justify-center lg:hidden">
           <BackIcon />
         </Link>
         <CharacterAvatar id={character.id} tint="#FFFFFF" size={44} />
@@ -360,6 +381,16 @@ export default function ChatClient({ id }: { id: string }) {
         >
           {summaryState === "none" ? "정리하기" : summaryState === "done" ? "정리 보기" : "다시 정리"}
         </Link>
+        {person && (
+          <button
+            aria-pressed={panelOpen}
+            aria-label={panelOpen ? `${person.name} 프로필 패널 닫기` : `${person.name} 프로필 패널 열기`}
+            onClick={togglePanel}
+            className={`hidden h-11 w-11 items-center justify-center rounded-full xl:flex ${panelOpen ? "bg-ink text-white" : "bg-white text-muted"}`}
+          >
+            <PanelIcon />
+          </button>
+        )}
       </header>
 
       <div className="flex shrink-0 justify-center py-2.5">
@@ -377,7 +408,7 @@ export default function ChatClient({ id }: { id: string }) {
           }}
           className="relative h-full overflow-y-auto overscroll-contain [overflow-anchor:none]"
         >
-          <div ref={contentRef} className="flex flex-col gap-2.5 px-4 pb-4">
+          <div ref={contentRef} className="flex flex-col gap-2.5 px-4 pb-4 lg:mx-auto lg:max-w-3xl lg:px-8">
             {messages.slice(0, splitAt).map((m, i) => renderMessage(m, i))}
             {anchor === null ? (
               tail
@@ -434,7 +465,7 @@ export default function ChatClient({ id }: { id: string }) {
           </p>
         </div>
       ) : (
-      <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5">
+      <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5 lg:rounded-none lg:px-8 lg:*:mx-auto lg:*:max-w-3xl">
         {(remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES || (usage !== null && usage >= 80)) && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
             {usage !== null && usage >= 80 && <UsageMeter percent={usage} />}
@@ -543,6 +574,9 @@ export default function ChatClient({ id }: { id: string }) {
       </div>
       )}
     </main>
+    {/* 넓은 화면(xl 이상): 상담 중인 사람의 프로필을 옆에 띄워 둔다 */}
+    {person && panelOpen && <PersonPanel person={person} onClose={togglePanel} />}
+    </div>
   );
 }
 

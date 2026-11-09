@@ -42,6 +42,7 @@ export default function PersonClient({ id }: { id: string }) {
       body: JSON.stringify(update),
     });
     setPerson(await res.json());
+    window.dispatchEvent(new Event("onginote:persons")); // PC 사이드바 목록 갱신
   }
 
   function addItem(field: ListField, value: string) {
@@ -78,26 +79,33 @@ export default function PersonClient({ id }: { id: string }) {
   }
 
   return (
-    <main className="pb-28">
-      <section className="rounded-b-[36px] bg-peach px-3 pb-6 pt-3">
-        <Link href="/people" aria-label="뒤로" className="flex h-11 w-11 items-center justify-center">
+    <main className="pb-28 lg:mx-auto lg:max-w-5xl lg:px-8 lg:pb-10 lg:pt-7">
+      <section className="rounded-b-[36px] bg-peach px-3 pb-6 pt-3 lg:flex lg:items-center lg:gap-5 lg:rounded-[28px] lg:px-7 lg:py-6">
+        <Link href="/people" aria-label="뒤로" className="flex h-11 w-11 items-center justify-center lg:hidden">
           <BackIcon />
         </Link>
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 lg:flex-1 lg:flex-row lg:gap-5">
           <span className="flex h-21 w-21 items-center justify-center rounded-full border-[3px] border-bubble bg-white font-display text-4xl text-accent-text">
             {person.name.slice(0, 1)}
           </span>
-          <h1 className="font-display text-[28px]">{person.name}</h1>
+          <div className="flex flex-col items-center gap-2 lg:items-start">
+          <h1 className="font-display text-[28px] lg:text-[32px]">{person.name}</h1>
           <div className="flex flex-wrap justify-center gap-1.5 text-xs font-medium">
             <span className="rounded-xl bg-accent px-2.5 py-1 font-bold text-white">{person.relation}</span>
             <InlineEdit label="MBTI" value={person.mbti} placeholder="MBTI 추가" onSave={(v) => patch({ mbti: v.toUpperCase() })} />
             <InlineEdit label="나이" value={person.age ? `${person.age}` : undefined} suffix="세" placeholder="나이 추가" onSave={(v) => patch({ age: v })} />
           </div>
+          </div>
         </div>
+        <Link href={`/new?person=${person.id}`} className="hidden h-12 shrink-0 items-center rounded-full bg-accent px-6 text-sm font-bold text-white lg:flex">
+          {person.name} 얘기 상담하기
+        </Link>
       </section>
 
-      <div className="flex flex-col gap-3 px-4 pt-4">
-        <div className="flex items-center gap-3 rounded-[20px] border border-line bg-white px-4 py-3.5">
+      {/* 모바일은 한 줄(order 순서), PC는 위에 물어보기 + 아래 두 칸 */}
+      <div className="flex flex-col gap-3 px-4 pt-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4.5 lg:px-0 lg:pt-4.5">
+        <div className="contents lg:col-start-1 lg:row-start-2 lg:flex lg:flex-col lg:gap-4.5">
+        <div className="order-1 flex items-center gap-3 rounded-[20px] border border-line bg-white px-4 py-3.5 lg:order-none">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-peach text-accent-text"><CakeIcon size={22} /></span>
           <span className="flex-1">
             <span className="block text-[15px] font-bold">{person.birthday ? `생일 ${birthdayLabel(person.birthday)}` : "생일을 아직 몰라요"}</span>
@@ -108,7 +116,18 @@ export default function PersonClient({ id }: { id: string }) {
           {dday !== null && <span className="font-display text-[22px] text-accent-text">D-{dday}</span>}
         </div>
 
-        <form onSubmit={ask} className="flex flex-col gap-2 rounded-[24px] border-[1.5px] border-bubble bg-white p-2">
+        <section className="order-3 flex flex-col gap-5 rounded-[22px] border border-line bg-white p-4.5 lg:order-none">
+          <ChipList title="좋아하는 것" items={person.likes} tone="peach" onAdd={(v) => addItem("likes", v)} onRemove={(v) => removeItem("likes", v)} />
+          <ChipList title="싫어하는 것" items={person.dislikes} tone="gray" onAdd={(v) => addItem("dislikes", v)} onRemove={(v) => removeItem("dislikes", v)} />
+          <div className="flex flex-col gap-1">
+            <h2 className="font-display text-[17px]">연락 스타일</h2>
+            <InlineText value={person.contactStyle} placeholder="예: 저녁에 몰아서 답장" onSave={(v) => patch({ contactStyle: v })} />
+          </div>
+          <ChipList title="성격 메모" items={person.notes} tone="text" onAdd={(v) => addItem("notes", v)} onRemove={(v) => removeItem("notes", v)} />
+        </section>
+        </div>
+
+        <form onSubmit={ask} className="order-2 flex flex-col gap-2 rounded-[24px] border-[1.5px] border-bubble bg-white p-2 lg:order-none lg:col-span-2 lg:row-start-1">
           <div className="flex items-center gap-2">
             <CharacterAvatar id="mongle" tint={mongle.tint} size={36} />
             <label htmlFor="ask" className="sr-only">{person.name}에 대해 물어보기</label>
@@ -126,20 +145,11 @@ export default function PersonClient({ id }: { id: string }) {
           {answer && <p className="rounded-2xl bg-cream px-3.5 py-3 text-sm leading-relaxed">{answer}</p>}
         </form>
 
-        <section className="flex flex-col gap-5 rounded-[22px] border border-line bg-white p-4.5">
-          <ChipList title="좋아하는 것" items={person.likes} tone="peach" onAdd={(v) => addItem("likes", v)} onRemove={(v) => removeItem("likes", v)} />
-          <ChipList title="싫어하는 것" items={person.dislikes} tone="gray" onAdd={(v) => addItem("dislikes", v)} onRemove={(v) => removeItem("dislikes", v)} />
-          <div className="flex flex-col gap-1">
-            <h2 className="font-display text-[17px]">연락 스타일</h2>
-            <InlineText value={person.contactStyle} placeholder="예: 저녁에 몰아서 답장" onSave={(v) => patch({ contactStyle: v })} />
-          </div>
-          <ChipList title="성격 메모" items={person.notes} tone="text" onAdd={(v) => addItem("notes", v)} onRemove={(v) => removeItem("notes", v)} />
-        </section>
-
-        <Timeline items={person.timeline} onChange={(timeline) => patch({ timeline })} />
+        <div className="contents lg:col-start-2 lg:row-start-2 lg:flex lg:flex-col lg:gap-4.5">
+        <Timeline className="order-4 lg:order-none" items={person.timeline} onChange={(timeline) => patch({ timeline })} />
 
         {sessions.length > 0 && (
-          <section className="flex flex-col gap-2">
+          <section className="order-5 flex flex-col gap-2 lg:order-none">
             <h2 className="px-1 font-display text-[17px]">상담 기록</h2>
             {sessions
               .slice()
@@ -159,16 +169,17 @@ export default function PersonClient({ id }: { id: string }) {
               })}
           </section>
         )}
+        </div>
 
-        <Link href={`/new?person=${person.id}`} className="flex h-12 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
+        <Link href={`/new?person=${person.id}`} className="order-6 flex h-12 items-center justify-center rounded-full bg-accent text-sm font-bold text-white lg:hidden">
           {person.name} 얘기 상담하기
         </Link>
 
-        <p className="flex items-center gap-2.5 rounded-2xl bg-teal-bg px-3.5 py-3 text-xs leading-normal text-teal">
+        <p className="order-7 flex items-center gap-2.5 rounded-2xl bg-teal-bg px-3.5 py-3 text-xs leading-normal text-teal lg:order-none lg:col-span-2">
           <LockIcon className="shrink-0" />
           프로토타입에서는 이 기록이 이 컴퓨터(data/db.json)에만 저장돼요.
         </p>
-        <button onClick={deleteAll} className="h-11 self-start px-1.5 text-sm text-danger">
+        <button onClick={deleteAll} className="order-8 h-11 self-start px-1.5 text-sm text-danger lg:order-none lg:col-span-2 lg:justify-self-start">
           {person.name} 기록 전체 삭제
         </button>
       </div>
@@ -268,7 +279,7 @@ function dateLabel(date: string) {
 }
 
 /** 우리 이야기: 상담 정리로 쌓이고, 직접 쓰고 고치고 지울 수도 있다. 최신이 위. */
-function Timeline({ items, onChange }: { items: TimelineItem[]; onChange: (items: TimelineItem[]) => void }) {
+function Timeline({ items, onChange, className = "" }: { items: TimelineItem[]; onChange: (items: TimelineItem[]) => void; className?: string }) {
   const [adding, setAdding] = useState(false);
   const [date, setDate] = useState(localToday);
   const [text, setText] = useState("");
@@ -294,7 +305,7 @@ function Timeline({ items, onChange }: { items: TimelineItem[]; onChange: (items
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-[22px] border border-line bg-white p-4.5">
+    <section className={`flex flex-col gap-3 rounded-[22px] border border-line bg-white p-4.5 ${className}`}>
       <div className="flex items-center justify-between">
         <h2 className="font-display text-[17px]">우리 이야기</h2>
         {!adding && (

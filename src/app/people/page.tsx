@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
-import { PlusIcon } from "@/components/Icons";
+import { PeopleIcon, PlusIcon } from "@/components/Icons";
 import { birthdayLabel, daysUntilBirthday } from "@/lib/format";
 import type { Person } from "@/lib/types";
 
@@ -14,7 +14,9 @@ export default function PeoplePage() {
   }, []);
 
   return (
-    <main className="px-5 pb-28 pt-6">
+    <>
+    {/* 모바일: 사람 목록 화면. PC에서는 왼쪽 사이드바가 목록을 맡는다. */}
+    <main className="px-5 pb-28 pt-6 lg:hidden">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-[26px]">내 사람들</h1>
         <Link href="/people/new" className="flex h-10 items-center gap-1 rounded-full bg-accent px-4 text-sm font-bold text-white">
@@ -54,5 +56,15 @@ export default function PeoplePage() {
       </ul>
       <BottomNav />
     </main>
+
+    <main className="hidden h-dvh flex-col items-center justify-center gap-4 px-8 text-center lg:flex">
+      <span className="flex h-24 w-24 items-center justify-center rounded-full bg-peach text-accent-text"><PeopleIcon size={44} /></span>
+      <p className="font-display text-2xl">{persons?.length ? "왼쪽에서 사람을 골라 줘" : "고민 상대를 먼저 등록해 줘"}</p>
+      <p className="text-sm text-muted">상담하면서 알게 된 정보가 사람마다 쌓여요</p>
+      <Link href="/people/new" className="flex h-12 items-center rounded-full bg-accent px-6 text-[15px] font-bold text-white">
+        새 사람 등록하기
+      </Link>
+    </main>
+    </>
   );
 }

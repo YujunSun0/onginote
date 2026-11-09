@@ -4,22 +4,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChatIcon, HomeIcon, PeopleIcon } from "./Icons";
 
-const items = [
+export const NAV_ITEMS = [
   { href: "/", label: "홈", Icon: HomeIcon },
   { href: "/chats", label: "상담", Icon: ChatIcon },
   { href: "/people", label: "사람들", Icon: PeopleIcon },
 ];
 
+export function isNavActive(href: string, path: string): boolean {
+  if (href === "/") return path === "/";
+  if (href === "/chats") return path === "/chats" || path === "/new" || path.startsWith("/chat/");
+  return path.startsWith(href);
+}
+
+/** 모바일 하단 메뉴. PC(lg 이상)에서는 왼쪽 세로 메뉴(SideRail)가 대신한다. */
 export function BottomNav() {
   const path = usePathname();
   return (
     <nav
       aria-label="하단 메뉴"
-      className="fixed inset-x-0 bottom-3 z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-3 rounded-full border border-line bg-white"
+      className="fixed inset-x-0 bottom-3 z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-3 rounded-full border border-line bg-white lg:hidden"
     >
-      {items.map(({ href, label, Icon }) => {
-        const active =
-          href === "/" ? path === "/" : href === "/chats" ? path === "/chats" || path === "/new" : path.startsWith(href);
+      {NAV_ITEMS.map(({ href, label, Icon }) => {
+        const active = isNavActive(href, path);
         return (
           <Link
             key={href}
