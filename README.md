@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 온기노트
 
-## Getting Started
+캐릭터와 함께하는 연애·인간관계 고민 상담 웹앱 (프로토타입).
 
-First, run the development server:
+말투와 성격이 다른 캐릭터 4명이 고민을 들어주고, 대화 흐름에 맞춰 들어주기 → 상황 해석 → 행동 플랜으로 자연스럽게 넘어가요. 대화에서 알게 된 상대방 정보는 인물 프로필에 쌓여서, 나중에 "걔 뭐 좋아했더라?"를 찾아보거나 다음 상담에 활용돼요.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> 전문 심리상담이나 의료 서비스를 대신하지 않아요. 위기 신호가 보이면 자살예방상담전화 109, 정신건강위기상담 1577-0199를 안내해요.
+
+## 주요 기능
+
+**상담**
+- 캐릭터 4명: 몽글(다정·느긋), 여울(직설·행동 위주), 올리(차분·근거 중심, 존댓말), 다온(친구 같은 반말)
+- 대화 흐름에 따라 모드가 바뀌어요. 고정된 단계가 아니라 메시지마다 판단해요.
+
+  | 모드 | 언제 |
+  |---|---|
+  | 들어주기 | 하소연 중일 때. 조언 없이 공감만 |
+  | 알아가기 | 해석할 정보가 거의 없을 때. 연속 2번까지만 |
+  | 상황 해석 | "왜 이래?", "무슨 일이야?"를 물을 때. 가장 그럴듯한 이유를 골라 말해요. 두 번째부터는 달라진 점만 |
+  | 반응 | 사용자가 정정·결정·반박을 말할 때. 그 말에 직접 답하고 선택지를 다시 주지 않아요 |
+  | 플랜 제안 / 플랜 | 해결책을 원할 때. 오늘 할 것, 하지 말 것, 보낼 말 초안 |
+
+- 입력창 위 칩("그냥 들어줘", "이제 해결책 볼래", "보낼 말 써줘")으로 모드를 직접 고를 수도 있어요.
+- 해석·플랜 답변은 카톡처럼 말풍선 2~3개로 나눠 보내요.
+- 카톡 캡처를 한 번에 5장까지 보내면 내용을 읽고 해석해요.
+- 해석·플랜에서 필요할 때만 "isfj 갑자기 잠수" 같은 일반 사례를 웹 검색해요. 상대방 실명은 검색하지 않아요.
+- 음성 입력과 답변 읽어주기 (브라우저 내장 기능)
+
+**정리와 기록**
+- 상담 정리 카드: 상황, 해석, 할 것, 하지 말 것
+- 프로필 저장 제안: 대화에서 찾은 정보를 고쳐서 저장할 수 있고, 체크한 것만 저장돼요.
+- "우리 이야기" 타임라인: 정리할 때 한 줄씩 쌓이고, 프로필에서 직접 쓰고 고칠 수도 있어요.
+- 선톡: 정리할 때 며칠 뒤 캐릭터가 보낼 안부를 만들어 둬요. 홈 화면에 뜨고, 스위치로 끌 수 있어요.
+- 정리한 상담은 잠기고, "이어서 얘기하기"로 다시 열면 "다시 정리"할 수 있어요.
+
+**사람과 상담 목록**
+- 인물 프로필: MBTI, 나이, 생일 D-day, 좋아하는 것, 싫어하는 것, 연락 스타일, 성격 메모, 우리 이야기
+- 프로필 "물어보기": 저장된 정보로 답해요 ("OO이 뭐 좋아했더라?")
+- 상담 탭: 전체 상담 목록. 정리 상태와 사람으로 거를 수 있어요.
+
+## 시작하기
+
+준비물: Node.js 20 이상, Claude API 키
+
+1. API 키 발급: https://console.anthropic.com → Settings → API Keys → Create Key (결제 수단 등록과 크레딧 충전이 필요해요)
+2. 설치하고 키 넣기
+   ```bash
+   npm install
+   cp .env.example .env.local
+   ```
+   `.env.local`의 `ANTHROPIC_API_KEY=` 뒤에 키를 붙여넣어요. 이 파일은 깃에 올라가지 않아요.
+3. 실행
+   ```bash
+   npm run dev
+   ```
+   http://localhost:3000 을 열어요. 음성 기능은 Chrome이나 Edge에서 돼요.
+
+### 환경 변수
+
+| 이름 | 기본값 | 설명 |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | (필수) | Claude API 키 |
+| `ONGI_CHAT_MODEL` | `claude-opus-5-5` | 캐릭터 답변, 정리 카드에 쓰는 모델 |
+| `ONGI_ROUTER_MODEL` | `claude-opus-5-5` | 모드 판단에 쓰는 모델. `claude-haiku-5-5`로 바꾸면 비용이 줄어요 |
+
+## 구조
+
+```
+src/
+├─ app/
+│  ├─ page.tsx                  홈 (선톡, 내 사람들, 최근 상담)
+│  ├─ chats/                    상담 목록
+│  ├─ new/                      새 상담 (캐릭터·인물 고르기)
+│  ├─ chat/[id]/                채팅, chat/[id]/summary 정리 카드
+│  ├─ people/                   인물 목록, 등록, 프로필
+│  └─ api/
+│     ├─ chat/                  모드 판단 + 답변 스트리밍 (NDJSON)
+│     ├─ sessions/              상담 생성·조회, [id]/summary 정리, [id]/apply 프로필 저장
+│     └─ persons/               인물 CRUD, [id]/ask 물어보기
+├─ components/                  캐릭터 얼굴, 아이콘, 하단 메뉴, 정리 표시
+└─ lib/
+   ├─ characters.ts             캐릭터 성격·말투·목소리
+   ├─ prompts.ts                안전 규칙, 모드별 지시, 모드 판단 프롬프트
+   ├─ claude.ts                 Claude 클라이언트, 모델 설정, 오류 메시지
+   ├─ db.ts                     JSON 파일 저장소 (data/db.json)
+   ├─ types.ts                  데이터 타입
+   ├─ format.ts                 조사, 날짜, 말풍선 나누기
+   └─ speech.ts                 브라우저 음성 인식·합성
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+메시지 하나를 보내면 이렇게 흘러가요.
+1. 모드 판단: 최근 대화와 현재 모드를 보고 다음 모드를 정해요. 구조화 출력을 써요.
+2. 캐릭터 답변: 시스템 프롬프트(안전 규칙 + 캐릭터 + 인물 프로필, 프롬프트 캐싱)에 모드 지시를 붙여서 스트리밍해요. 안전 문제로 답을 거절하면 다른 모델이 자동으로 이어 답해요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 데이터와 개인정보
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- 모든 데이터는 이 컴퓨터의 `data/db.json`에만 저장되고 깃에 올라가지 않아요.
+- 정리할 때 건강, 성적 지향, 종교, 연락처, 주소 같은 민감한 정보는 프로필에 자동으로 제안하지 않아요.
+- 배포할 때는 `src/lib/db.ts`만 실제 DB로 바꾸면 돼요.
 
-## Learn More
+## 비용
 
-To learn more about Next.js, take a look at the following resources:
+메시지 하나에 모델을 두 번 불러요 (모드 판단 + 답변). 사진은 1장에 대략 1,500토큰이고, 최근 6개 메시지의 사진은 매번 다시 보내져요. 비용을 줄이려면 `ONGI_ROUTER_MODEL=claude-haiku-5-5`로 모드 판단만 저렴한 모델에 맡겨 보세요.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 앞으로 할 일
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] 상담 품질 평가 세트 (프롬프트를 바꿀 때마다 회귀 확인)
+- [ ] 개인정보 잠금 (PIN, 생체인증)
+- [ ] 캐릭터 전용 TTS 목소리
+- [ ] 선톡 웹 푸시 알림
+- [ ] PC 2단 레이아웃
+- [ ] 로그인 + 실제 DB, 사용자별 사용량 제한
+- [ ] 개인정보처리방침, AI 생성물 고지
+- [ ] PWA → 앱 출시

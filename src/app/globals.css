@@ -1,26 +1,38 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-cream: #fff8f1;
+  --color-peach: #ffe7d6;
+  --color-peach-deep: #ffd9c2;
+  --color-line: #f2e2d5;
+  --color-line-strong: #e6d3c5;
+  --color-ink: #2b1a12;
+  --color-ink-soft: #4a3a31;
+  --color-muted: #74645a;
+  --color-accent: #c4491b;
+  --color-accent-text: #a63d14;
+  --color-bubble: #ff8a50;
+  --color-teal: #2f6f73;
+  --color-teal-bg: #e3f0f0;
+  --color-danger: #b3261e;
+
+  --font-sans: var(--font-noto), system-ui, sans-serif;
+  --font-display: var(--font-jua), var(--font-noto), sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: #f6ebe1;
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 키보드 사용자를 위한 포커스 표시 */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
