@@ -10,7 +10,17 @@ import {
   modeInstruction,
   transcript,
 } from "@/lib/prompts";
-import { MAX_IMAGES, messageImages, type ChatImage, type ChatMessage, type Mode, type Session } from "@/lib/types";
+import {
+  MAX_IMAGES,
+  MAX_INPUT_CHARS,
+  MAX_USER_MESSAGES,
+  messageImages,
+  type ChatImage,
+  type ChatMessage,
+  type Mode,
+  type Session,
+} from "@/lib/types";
+import { BUDGET_EXCEEDED_MESSAGE, getUsageStatus, recordUsage, usageStatus } from "@/lib/usage";
 
 const RouterSchema = z.object({
   mode: z.enum(["listen", "explore", "interpret", "react", "offer_plan", "plan"]),
@@ -42,10 +52,22 @@ export async function POST(request: Request) {
   if (images.some((img) => img.data.length > MAX_IMAGE_BASE64)) {
     return Response.json({ error: "이미지가 너무 커요. 한 장에 5MB 이하로 올려 주세요." }, { status: 400 });
   }
+  if (text.length > MAX_INPUT_CHARS) {
+    return Response.json({ error: `메시지는 ${MAX_INPUT_CHARS.toLocaleString()}자까지 보낼 수 있어요.` }, { status: 400 });
+  }
 
   const db = await getDb();
   const session = db.sessions.find((s) => s.id === body.sessionId);
   if (!session) return Response.json({ error: "상담을 찾을 수 없어요." }, { status: 404 });
+  if (usageStatus(db).exceeded) {
+    return Response.json({ error: BUDGET_EXCEEDED_MESSAGE, limit: "daily" }, { status: 429 });
+  }
+  if (session.messages.filter((m) => m.role === "user").length >= MAX_USER_MESSAGES) {
+    return Response.json(
+      { error: "이 상담은 충분히 길어졌어요. 정리하고 새 상담으로 이어가 주세요.", limit: "session" },
+      { status: 400 },
+    );
+  }
   const person = session.personId ? db.persons.find((p) => p.id === session.personId) ?? null : null;
   const character = CHARACTERS[session.characterId];
 
@@ -86,9 +108,11 @@ export async function POST(request: Request) {
           instruction = `[위기 신호 감지] 모드와 상관없이, 사용자의 안전을 먼저 걱정해 주고 자살예방상담전화 109, 정신건강위기상담 1577-0199, 위급하면 112/119를 꼭 안내해.`;
         }
 
+        // 캐시가 깨지지 않게: 요청 전체의 effort 는 low 로 고정하고, 깊게 생각할 턴만
+        // 모드 지시 메시지에서 올린다 (top-level 값을 바꾸면 대화 기록 캐시가 처음부터 다시 쓰인다)
         let messages: Anthropic.Beta.BetaMessageParam[] = [
           ...toApiMessages(history),
-          { role: "system", content: instruction },
+          { role: "system", content: instruction, output_config: { effort: deep ? "medium" : "low" } },
         ];
 
         let fullText = "";
@@ -96,9 +120,9 @@ export async function POST(request: Request) {
           const reply = getClient().beta.messages.stream({
             model: CHAT_MODEL,
             max_tokens: 16000,
-            betas: ["server-side-fallback-2026-07-01"],
+            betas: ["server-side-fallback-2026-07-01", "mid-conversation-output-config-2026-07-01"],
             fallbacks: "default",
-            output_config: { effort: deep ? "medium" : "low" },
+            output_config: { effort: "low" },
             system: [
               { type: "text", text: buildSystemPrompt(character, person), cache_control: { type: "ephemeral" } },
             ],
@@ -117,6 +141,7 @@ export async function POST(request: Request) {
             }
           }
           const final = await reply.finalMessage();
+          await recordUsage("chat", final.model ?? CHAT_MODEL, final.usage, session.id);
           if (final.stop_reason === "pause_turn") {
             // 웹 검색이 길어져 서버가 잠시 멈춘 경우: 이어서 진행
             messages = [...messages, { role: "assistant", content: final.content }];
@@ -142,7 +167,7 @@ export async function POST(request: Request) {
           s.mode = route.mode;
           if (route.mode === "offer_plan") s.planOfferedAt = s.messages.length - 1;
         });
-        send({ type: "done", mode: route.mode });
+        send({ type: "done", mode: route.mode, usage: (await getUsageStatus()).percent });
       } catch (err) {
         console.error(err);
         send({ type: "error", message: apiErrorMessage(err) });
@@ -184,6 +209,7 @@ async function decideMode(
         },
       ],
     });
+    await recordUsage("router", res.model ?? ROUTER_MODEL, res.usage, session.id);
     const out = res.parsed_output;
     if (out) {
       // 질문만 계속하지 않도록: 알아가기는 연속 2번까지만
@@ -215,9 +241,16 @@ function countExploreStreak(history: ChatMessage[]): number {
   return n;
 }
 
-/** 최근 대화를 API 메시지로 바꾼다. 이미지는 최근 것만 보낸다. */
+/**
+ * 최근 대화를 API 메시지로 바꾼다. 이미지는 최근 것만 보낸다.
+ *
+ * 프롬프트 캐시는 앞부분이 똑같을 때만 맞는다. 그래서
+ * - 보내는 범위를 매번 한 칸씩 밀지 않고 10개 단위로 민다 (30~39개를 보냄)
+ * - 이번 사용자 메시지 끝에 캐시 지점을 둔다. 다음 턴에는 여기까지가 1/10 가격으로 읽힌다.
+ */
 function toApiMessages(history: ChatMessage[]): Anthropic.Beta.BetaMessageParam[] {
-  const recent = history.slice(-30);
+  const start = history.length > 30 ? Math.floor((history.length - 30) / 10) * 10 : 0;
+  const recent = history.slice(start);
   // API의 첫 메시지는 user여야 한다 (첫 인사는 assistant라서 앞에 맥락을 붙인다)
   const out: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: "(상담을 시작했어요)" }];
   recent.forEach((m, i) => {
@@ -241,5 +274,16 @@ ${m.text}` : m.text },
         : m.text + (imgs.length ? ` [이전에 대화 캡처 ${imgs.length}장을 보냈음]` : ""),
     });
   });
+  markCacheBreakpoint(out[out.length - 1]);
   return out;
+}
+
+function markCacheBreakpoint(msg: Anthropic.Beta.BetaMessageParam | undefined) {
+  if (!msg || msg.role !== "user") return;
+  if (typeof msg.content === "string") {
+    msg.content = [{ type: "text", text: msg.content, cache_control: { type: "ephemeral" } }];
+    return;
+  }
+  const lastBlock = msg.content[msg.content.length - 1];
+  if (lastBlock && lastBlock.type === "text") lastBlock.cache_control = { type: "ephemeral" };
 }

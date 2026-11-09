@@ -43,6 +43,12 @@ export function summaryState(s: Pick<Session, "summary" | "messages">): SummaryS
 
 /** 한 메시지에 붙일 수 있는 사진 수 */
 export const MAX_IMAGES = 5;
+/** 메시지 하나의 최대 글자 수 */
+export const MAX_INPUT_CHARS = 2000;
+/** 상담 하나에서 보낼 수 있는 내 메시지 수. 길어질수록 메시지마다 비용이 커진다. */
+export const MAX_USER_MESSAGES = 40;
+/** 이 수부터 남은 횟수를 알려준다 */
+export const WARN_USER_MESSAGES = 30;
 
 export function messageImages(m: ChatMessage): ChatImage[] {
   return m.images ?? (m.image ? [m.image] : []);
@@ -100,4 +106,24 @@ export interface Session {
 export interface Db {
   persons: Person[];
   sessions: Session[];
+  usage?: UsageRecord[];
+}
+
+export type UsageKind = "router" | "chat" | "summary" | "ask";
+
+/** API 호출 한 번의 사용량 */
+export interface UsageRecord {
+  at: string;
+  /** 로컬 날짜 YYYY-MM-DD (하루 한도 계산용) */
+  day: string;
+  kind: UsageKind;
+  model: string;
+  sessionId?: string;
+  input: number;
+  cacheWrite: number;
+  cacheRead: number;
+  output: number;
+  searches: number;
+  /** 달러 */
+  cost: number;
 }

@@ -9,7 +9,18 @@ import { BackIcon, ImageIcon, MicIcon, SendIcon, SpeakerIcon, XIcon } from "@/co
 import { CHARACTERS } from "@/lib/characters";
 import { josa, splitBubbles } from "@/lib/format";
 import { listenOnce, speak, speechRecognitionSupported, stopSpeaking } from "@/lib/speech";
-import { MAX_IMAGES, messageImages, type ChatImage, type ChatMessage, type Mode, type Person, type Session } from "@/lib/types";
+import {
+  MAX_IMAGES,
+  MAX_INPUT_CHARS,
+  MAX_USER_MESSAGES,
+  WARN_USER_MESSAGES,
+  messageImages,
+  type ChatImage,
+  type ChatMessage,
+  type Mode,
+  type Person,
+  type Session,
+} from "@/lib/types";
 
 const MODE_LABEL: Record<Mode, string> = {
   listen: "지금은 들어주는 중",
@@ -55,6 +66,7 @@ export default function ChatClient({ id }: { id: string }) {
   const [images, setImages] = useState<ChatImage[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false); // 답변이 끝날 때까지 true
+  const [usage, setUsage] = useState<number | null>(null); // 오늘 사용량 % (하루 한도 대비)
   const [unlocked, setUnlocked] = useState(false); // 정리된 상담을 이어서 얘기하기로 연 경우
   const [error, setError] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(false);
@@ -82,6 +94,10 @@ export default function ChatClient({ id }: { id: string }) {
         setMode(session.mode);
         setVoiceOn(session.voice);
       });
+    fetch("/api/usage")
+      .then((r) => r.json())
+      .then((u: { percent: number }) => setUsage(u.percent))
+      .catch(() => {});
     return () => stopSpeaking();
   }, [id]);
 
@@ -131,9 +147,15 @@ export default function ChatClient({ id }: { id: string }) {
   const summaryState: "none" | "done" | "stale" =
     summarizedAt === null ? "none" : messages.length > summarizedAt ? "stale" : "done";
   const locked = summaryState === "done" && !unlocked;
+  // 사용 제한: 상담 하나의 길이와 하루 사용량
+  const userCount = messages.filter((m) => m.role === "user").length;
+  const remaining = MAX_USER_MESSAGES - userCount;
+  const sessionFull = remaining <= 0;
+  const dailyOut = usage !== null && usage >= 100;
+  const blocked = sessionFull || dailyOut;
 
   async function send(text: string, forceMode?: Mode) {
-    if (busy || (!text.trim() && images.length === 0)) return;
+    if (busy || blocked || (!text.trim() && images.length === 0)) return;
     stopSpeaking();
     setError(null);
     const userMsg: ChatMessage = { role: "user", text: text.trim() || IMAGE_ONLY_TEXT, images: images.length ? images : undefined, at: new Date().toISOString() };
@@ -153,6 +175,12 @@ export default function ChatClient({ id }: { id: string }) {
       });
       if (!res.ok || !res.body) {
         const j = await res.json().catch(() => ({}));
+        // 서버가 받기 전에 거절했으니 보낸 메시지를 입력창으로 되돌린다
+        setMessages((m) => m.slice(0, -1));
+        setAnchor(null);
+        setInput(text);
+        setImages(sentImages);
+        if (j.limit === "daily") setUsage(100);
         throw new Error(j.error || "메시지를 보내지 못했어요.");
       }
       const reader = res.body.getReader();
@@ -185,6 +213,8 @@ export default function ChatClient({ id }: { id: string }) {
             } else {
               setMessages((m) => [...m.slice(0, -1), { ...m[m.length - 1], text: reply }]);
             }
+          } else if (ev.type === "done") {
+            if (typeof ev.usage === "number") setUsage(ev.usage);
           } else if (ev.type === "error") {
             throw new Error(ev.message);
           }
@@ -208,8 +238,8 @@ export default function ChatClient({ id }: { id: string }) {
     stopSpeaking();
     setListening(true);
     stopListenRef.current = listenOnce({
-      onInterim: (t) => setInput(t),
-      onFinal: (t) => send(t),
+      onInterim: (t) => setInput(t.slice(0, MAX_INPUT_CHARS)),
+      onFinal: (t) => send(t.slice(0, MAX_INPUT_CHARS)),
       onEnd: () => setListening(false),
       onError: (msg) => setError(msg),
     });
@@ -382,8 +412,40 @@ export default function ChatClient({ id }: { id: string }) {
             이어서 얘기하기
           </button>
         </div>
+      ) : sessionFull ? (
+        <div className="flex shrink-0 items-center gap-3 rounded-t-3xl border-t border-line bg-white px-4 pb-5 pt-4">
+          <p className="flex-1 text-sm">
+            이 상담은 충분히 길어졌어요
+            <span className="block text-xs text-muted">정리해 두고 새 상담에서 이어서 얘기해요</span>
+          </p>
+          <Link
+            href={`/chat/${id}/summary`}
+            className="flex h-11 shrink-0 items-center rounded-full bg-accent px-4 text-sm font-bold text-white"
+          >
+            정리하기
+          </Link>
+        </div>
+      ) : dailyOut ? (
+        <div className="flex shrink-0 items-center gap-3 rounded-t-3xl border-t border-line bg-white px-4 pb-5 pt-4">
+          <UsageMeter percent={100} />
+          <p className="flex-1 text-sm">
+            오늘 대화량을 다 썼어요
+            <span className="block text-xs text-muted">내일 다시 이야기해요. 정리하기는 지금도 할 수 있어요</span>
+          </p>
+        </div>
       ) : (
       <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5">
+        {(remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES || (usage !== null && usage >= 80)) && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
+            {usage !== null && usage >= 80 && <UsageMeter percent={usage} />}
+            <span className="flex-1">
+              {remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES
+                ? `이 상담에서 ${remaining}번 더 이야기할 수 있어요`
+                : `오늘 대화량의 ${usage}%를 썼어요`}
+              {remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES && usage !== null && usage >= 80 ? ` · 오늘 ${usage}% 사용` : ""}
+            </span>
+          </div>
+        )}
         <div className="flex gap-1.5 overflow-x-auto pb-2.5">
           {CHIPS.map((c) => (
             <button
@@ -453,6 +515,7 @@ export default function ChatClient({ id }: { id: string }) {
             ref={inputRef}
             rows={1}
             value={input}
+            maxLength={MAX_INPUT_CHARS}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               // 한글 조합 중 엔터는 무시해야 마지막 글자가 중복되지 않는다
@@ -472,9 +535,30 @@ export default function ChatClient({ id }: { id: string }) {
             <SendIcon />
           </button>
         </form>
+        {input.length > MAX_INPUT_CHARS * 0.8 && (
+          <p className={`pr-14 pt-1 text-right text-[11px] ${input.length >= MAX_INPUT_CHARS ? "font-bold text-accent-text" : "text-muted"}`}>
+            {input.length.toLocaleString()}/{MAX_INPUT_CHARS.toLocaleString()}자
+          </p>
+        )}
       </div>
       )}
     </main>
+  );
+}
+
+/** 오늘 사용량을 보여주는 작은 원형 게이지 */
+function UsageMeter({ percent }: { percent: number }) {
+  const r = 8;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" role="img" aria-label={`오늘 사용량 ${percent}%`} className="shrink-0 -rotate-90">
+      <circle cx="10" cy="10" r={r} fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="3" />
+      <circle
+        cx="10" cy="10" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(100, percent) / 100)}
+        className="text-accent"
+      />
+    </svg>
   );
 }
 

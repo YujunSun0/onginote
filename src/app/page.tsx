@@ -26,6 +26,7 @@ export default function Home() {
   const [persons, setPersons] = useState<Person[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [now, setNow] = useState<number | null>(null);
+  const [usage, setUsage] = useState<number | null>(null); // 오늘 사용량 %
 
   useEffect(() => {
     fetch("/api/persons").then((r) => r.json()).then(setPersons);
@@ -35,6 +36,10 @@ export default function Home() {
         setSessions(rows);
         setNow(Date.now());
       });
+    fetch("/api/usage")
+      .then((r) => r.json())
+      .then((u: { percent: number }) => setUsage(u.percent))
+      .catch(() => {});
   }, []);
   const today = now ? todayLabel(now) : "";
 
@@ -61,6 +66,15 @@ export default function Home() {
       <section className="rounded-b-[36px] bg-peach px-5 pb-6 pt-6">
         <div className="flex items-center justify-between">
           <span className="font-display text-2xl text-accent-text">온기노트</span>
+          {usage !== null && (
+            <span className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs text-ink-soft" title="하루 대화량 중 오늘 쓴 비율">
+              오늘 사용량
+              <span className="h-1.5 w-12 overflow-hidden rounded-full bg-line" aria-hidden>
+                <span className={`block h-full rounded-full ${usage >= 80 ? "bg-accent" : "bg-teal"}`} style={{ width: `${Math.max(usage, 2)}%` }} />
+              </span>
+              <span className="font-bold tabular-nums">{usage}%</span>
+            </span>
+          )}
         </div>
         <p className="pt-2 text-sm text-muted">{today}</p>
         <div className="flex items-end gap-3 pt-3">
