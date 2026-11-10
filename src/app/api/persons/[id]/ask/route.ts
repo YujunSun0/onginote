@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { CHARACTERS } from "@/lib/characters";
-import { CHAT_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
+import { LIGHT_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
 import { getDb } from "@/lib/db";
 import { SAFETY_RULES, personContext } from "@/lib/prompts";
 import { BUDGET_EXCEEDED_MESSAGE, recordUsage, usageStatus } from "@/lib/usage";
@@ -19,13 +19,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/persons
 
   try {
     const res = await getClient().messages.create({
-      model: CHAT_MODEL,
+      model: LIGHT_MODEL,
       max_tokens: 16000,
       output_config: { effort: "low" },
       system: `${SAFETY_RULES}\n\n[캐릭터]\n${character.persona}\n\n${personContext(person)}\n\n사용자가 이 사람에 대해 물어보면 기록을 바탕으로 2~4문장으로 답해. 기록에 없는 건 지어내지 말고 "아직 기록이 없어"라고 말한 뒤, 물어볼 만한 방법을 제안해.`,
       messages: [{ role: "user", content: question.trim() }],
     });
-    await recordUsage("ask", res.model ?? CHAT_MODEL, res.usage);
+    await recordUsage("ask", res.model ?? LIGHT_MODEL, res.usage);
     const answer = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
     return Response.json({ answer });
   } catch (err) {

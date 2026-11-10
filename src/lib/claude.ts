@@ -14,10 +14,12 @@ export function getClient(): Anthropic {
   return _client;
 }
 
-// 기본은 Claude Opus 5.5. 비용을 줄이고 싶으면 .env.local 에서 바꾼다.
-// (예: ONGI_ROUTER_MODEL=claude-haiku-5-5 로 모드 판단만 저렴한 모델에 맡기기)
-export const CHAT_MODEL = process.env.ONGI_CHAT_MODEL || "claude-opus-5-5";
-export const ROUTER_MODEL = process.env.ONGI_ROUTER_MODEL || "claude-opus-5-5";
+// 비용 때문에 기본값을 낮춰 두었다. 품질을 올리고 싶으면 .env.local 에서 바꾼다.
+// - 채팅 답변: Sonnet 5.5 (웹 검색, 거절 시 자동 대체, 턴별 effort 를 지원해야 해서 Haiku 는 안 됨)
+// - 모드 판단, 정리하기, 물어보기: Haiku 5.5 (정해진 형식으로 짧게 답하는 일)
+export const CHAT_MODEL = process.env.ONGI_CHAT_MODEL || "claude-sonnet-5-5";
+export const ROUTER_MODEL = process.env.ONGI_ROUTER_MODEL || "claude-haiku-5-5";
+export const LIGHT_MODEL = process.env.ONGI_LIGHT_MODEL || "claude-haiku-5-5";
 
 export function apiErrorMessage(err: unknown): string {
   if (err instanceof MissingKeyError) {

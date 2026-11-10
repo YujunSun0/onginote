@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CHARACTERS } from "@/lib/characters";
-import { CHAT_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
+import { LIGHT_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
 import { getDb, updateDb } from "@/lib/db";
 import { personContext, transcript } from "@/lib/prompts";
 import type { FollowUp, Summary } from "@/lib/types";
@@ -41,13 +41,13 @@ export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sessions/[
 
   try {
     const res = await getClient().messages.parse({
-      model: CHAT_MODEL,
+      model: LIGHT_MODEL,
       max_tokens: 16000,
       output_config: { effort: "medium", format: zodOutputFormat(SummarySchema) },
       system: `너는 연애 상담 앱 "온기노트"에서 상담 내용을 한 장의 정리 카드로 만드는 역할이야. 한국어로, 짧고 따뜻하게 써.\n캐릭터: ${character.name} (${character.style})\n${character.persona}\n\n${personContext(person)}\n\n${EXTRACT_RULES}`,
       messages: [{ role: "user", content: `[상담 대화]\n${transcript(session.messages, 60)}` }],
     });
-    await recordUsage("summary", res.model ?? CHAT_MODEL, res.usage, session.id);
+    await recordUsage("summary", res.model ?? LIGHT_MODEL, res.usage, session.id);
     const out = res.parsed_output;
     if (!out) return Response.json({ error: "정리 카드를 만들지 못했어요. 다시 시도해 주세요." }, { status: 502 });
 

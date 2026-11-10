@@ -74,8 +74,9 @@ Node.js 20 이상과 Claude API 키가 필요합니다.
 | 이름 | 기본값 | 설명 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | (필수) | Claude API 키 |
-| `ONGI_CHAT_MODEL` | `claude-opus-5-5` | 캐릭터 답변과 정리 카드에 쓰는 모델 |
-| `ONGI_ROUTER_MODEL` | `claude-opus-5-5` | 모드 판단에 쓰는 모델. `claude-haiku-5-5`로 바꾸면 비용을 줄일 수 있습니다 |
+| `ONGI_CHAT_MODEL` | `claude-sonnet-5-5` | 캐릭터 답변에 쓰는 모델. `claude-haiku-5-5`로 바꾸면 더 저렴하고, `claude-opus-5-5`로 바꾸면 품질이 올라갑니다 |
+| `ONGI_ROUTER_MODEL` | `claude-haiku-5-5` | 모드 판단에 쓰는 모델 |
+| `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드와 프로필 물어보기에 쓰는 모델 |
 | `ONGI_DAILY_BUDGET_USD` | `1` | 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
 
 ## 폴더 구조

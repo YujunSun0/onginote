@@ -128,7 +128,7 @@ export async function POST(request: Request) {
             ],
             messages,
             ...(searched
-              ? { tools: [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: 3 }] }
+              ? { tools: [{ type: webSearchType(CHAT_MODEL), name: "web_search" as const, max_uses: 3 }] }
               : {}),
           });
 
@@ -180,6 +180,14 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache" },
   });
+}
+
+/**
+ * 새 웹 검색 도구(20260209)는 Opus/Sonnet 전용이다. Haiku 에 주면 오류 없이 검색만 조용히 실패해서,
+ * Haiku 일 때는 이전 버전을 쓴다.
+ */
+function webSearchType(model: string) {
+  return model.includes("haiku") ? ("web_search_20250305" as const) : ("web_search_20260209" as const);
 }
 
 function forcedRoute(mode: Mode): RouterResult {
