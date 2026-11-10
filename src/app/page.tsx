@@ -39,6 +39,7 @@ export default function Home() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [now, setNow] = useState<number | null>(null);
   const [usage, setUsage] = useState<number | null>(null); // 오늘 사용량 %
+  const [nickname, setNickname] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/persons").then((r) => r.json()).then(setPersons);
@@ -51,6 +52,10 @@ export default function Home() {
     fetch("/api/usage")
       .then((r) => r.json())
       .then((u: { percent: number }) => setUsage(u.percent))
+      .catch(() => {});
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((m: { nickname?: string | null }) => setNickname(m.nickname || null))
       .catch(() => {});
   }, []);
   const today = now ? todayLabel(now) : "";
@@ -117,7 +122,9 @@ export default function Home() {
           <div className="flex items-end gap-3 pt-3 lg:gap-5">
             <CharacterFace id="mongle" size={96} />
             <div className="mb-3 flex-1 rounded-[20px_20px_20px_6px] bg-white px-4 py-3 lg:px-5 lg:py-4">
-              <p className="font-display text-xl leading-snug lg:text-2xl">왔구나! 오늘은<br />누구 얘기 해볼까?</p>
+              <p className="font-display text-xl leading-snug lg:text-2xl">
+                {nickname ? `${nickname}, 왔구나!` : "왔구나!"} 오늘은<br />누구 얘기 해볼까?
+              </p>
             </div>
           </div>
           <Link

@@ -36,3 +36,22 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* 인쇄(PDF 저장): 배경색과 말풍선 색을 그대로 찍고, 바깥 틀의 배경·그림자는 뺀다 */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  html,
+  body,
+  body > div,
+  body > div > div {
+    background: white !important;
+    box-shadow: none !important;
+  }
+  .print-doc {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

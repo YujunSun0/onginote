@@ -65,3 +65,6 @@ export const SearchIcon = ({ size = 18, className }: P) => (
 export const PanelIcon = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className}><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M15 4v16" /></svg>
 );
+export const MyIcon = ({ size = 22, className }: P) => (
+  <svg {...base(size)} className={className}><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4.2 4.2-6.5 8-6.5s7 2.3 8 6.5" /></svg>
+);

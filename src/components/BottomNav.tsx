@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChatIcon, HomeIcon, PeopleIcon } from "./Icons";
+import { ChatIcon, HomeIcon, MyIcon, PeopleIcon } from "./Icons";
 
 export const NAV_ITEMS = [
   { href: "/", label: "홈", Icon: HomeIcon },
   { href: "/chats", label: "상담", Icon: ChatIcon },
   { href: "/people", label: "사람들", Icon: PeopleIcon },
+  { href: "/me", label: "마이", Icon: MyIcon },
 ];
 
 export function isNavActive(href: string, path: string): boolean {
@@ -22,7 +23,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="하단 메뉴"
-      className="fixed inset-x-0 bottom-3 z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-3 rounded-full border border-line bg-white lg:hidden"
+      className="fixed inset-x-0 bottom-3 z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-4 rounded-full border border-line bg-white lg:hidden"
     >
       {NAV_ITEMS.map(({ href, label, Icon }) => {
         const active = isNavActive(href, path);

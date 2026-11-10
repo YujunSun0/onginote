@@ -3,7 +3,8 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CHARACTERS } from "@/lib/characters";
 import { LIGHT_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
-import { getDb, updateDb } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { getPerson, getSession, updateSession } from "@/lib/db";
 import { personContext, transcript } from "@/lib/prompts";
 import type { FollowUp, Summary } from "@/lib/types";
 import { recordUsage } from "@/lib/usage";
@@ -32,11 +33,12 @@ const EXTRACT_RULES = `[프로필 추출 규칙]
 - birthday 는 "MM-DD" 형식. 상담 대상 인물이 없으면 profile_suggestions 는 빈 배열.`;
 
 export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sessions/[id]/summary">) {
+  const auth = await requireUser();
+  if ("response" in auth) return auth.response;
   const { id } = await ctx.params;
-  const db = await getDb();
-  const session = db.sessions.find((s) => s.id === id);
+  const session = await getSession(auth.ctx, id);
   if (!session) return Response.json({ error: "not found" }, { status: 404 });
-  const person = session.personId ? db.persons.find((p) => p.id === session.personId) ?? null : null;
+  const person = session.personId ? await getPerson(auth.ctx, session.personId) : null;
   const character = CHARACTERS[session.characterId];
 
   try {
@@ -47,7 +49,7 @@ export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sessions/[
       system: `너는 연애 상담 앱 "온기노트"에서 상담 내용을 한 장의 정리 카드로 만드는 역할이야. 한국어로, 짧고 따뜻하게 써.\n캐릭터: ${character.name} (${character.style})\n${character.persona}\n\n${personContext(person)}\n\n${EXTRACT_RULES}`,
       messages: [{ role: "user", content: `[상담 대화]\n${transcript(session.messages, 60)}` }],
     });
-    await recordUsage("summary", res.model ?? LIGHT_MODEL, res.usage, session.id);
+    await recordUsage(auth.ctx.userId, "summary", res.model ?? LIGHT_MODEL, res.usage, session.id);
     const out = res.parsed_output;
     if (!out) return Response.json({ error: "정리 카드를 만들지 못했어요. 다시 시도해 주세요." }, { status: 502 });
 
@@ -68,13 +70,7 @@ export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sessions/[
       dismissed: false,
       muted: session.followUp?.muted, // 다시 정리해도 "안부 받지 않기" 설정은 유지
     };
-    await updateDb((d) => {
-      const s = d.sessions.find((x) => x.id === id);
-      if (s) {
-        s.summary = summary;
-        s.followUp = followUp;
-      }
-    });
+    await updateSession(auth.ctx, id, { summary, followUp });
     return Response.json({ summary, followUp });
   } catch (err) {
     console.error(err);

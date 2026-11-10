@@ -177,7 +177,7 @@ export default function PersonClient({ id }: { id: string }) {
 
         <p className="order-7 flex items-center gap-2.5 rounded-2xl bg-teal-bg px-3.5 py-3 text-xs leading-normal text-teal lg:order-none lg:col-span-2">
           <LockIcon className="shrink-0" />
-          프로토타입에서는 이 기록이 이 컴퓨터(data/db.json)에만 저장돼요.
+          이 기록은 로그인한 나만 볼 수 있어요.
         </p>
         <button onClick={deleteAll} className="order-8 h-11 self-start px-1.5 text-sm text-danger lg:order-none lg:col-span-2 lg:justify-self-start">
           {person.name} 기록 전체 삭제

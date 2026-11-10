@@ -1,28 +1,34 @@
+import { requireUser } from "@/lib/auth";
 import { CHARACTERS } from "@/lib/characters";
-import { getDb, newId, updateDb } from "@/lib/db";
-import { josa, splitBubbles } from "@/lib/format";
-import { summaryState, type CharacterId, type Session } from "@/lib/types";
+import { appendMessage, createSession, getPerson, getSessionMeta, listSessions, updateSession } from "@/lib/db";
+import { josa } from "@/lib/format";
+import { summaryState, type CharacterId } from "@/lib/types";
 
 export async function GET() {
-  const db = await getDb();
+  const auth = await requireUser();
+  if ("response" in auth) return auth.response;
+  const sessions = await listSessions(auth.ctx);
   return Response.json(
-    db.sessions.map((s) => ({
+    sessions.map((s) => ({
       id: s.id,
       characterId: s.characterId,
       personId: s.personId,
       createdAt: s.createdAt,
       title: s.summary?.title,
-      summaryState: summaryState(s),
+      summaryState: summaryState(s.summary, s.messageCount),
       followUp: s.followUp,
-      lastText: s.messages.at(-1) ? splitBubbles(s.messages.at(-1)!.text).join(" ") : undefined,
-      lastAt: s.messages.at(-1)?.at ?? s.createdAt,
-      userMessages: s.messages.filter((m) => m.role === "user").length,
+      lastText: s.lastText ?? undefined,
+      lastAt: s.lastAt ?? s.createdAt,
+      userMessages: s.userMessageCount,
       todos: s.summary?.todo.map((text, i) => ({ text, done: Boolean(s.summary!.todoDone?.[i]) })),
     })),
   );
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser();
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
   const body = (await request.json()) as {
     characterId: CharacterId;
     personId: string | null;
@@ -33,28 +39,16 @@ export async function POST(request: Request) {
   const character = CHARACTERS[body.characterId];
   if (!character) return Response.json({ error: "캐릭터를 골라 주세요." }, { status: 400 });
 
-  const db = await getDb();
-  const person = body.personId ? db.persons.find((p) => p.id === body.personId) : null;
-  const prev = body.fromFollowUpOf ? db.sessions.find((s) => s.id === body.fromFollowUpOf) : undefined;
-
+  const person = body.personId ? await getPerson(ctx, body.personId) : null;
+  const prev = body.fromFollowUpOf ? await getSessionMeta(ctx, body.fromFollowUpOf) : null;
   const greeting = prev?.followUp?.message || openingLine(body.characterId, person?.name ?? null);
 
-  const session: Session = {
-    id: newId(),
-    characterId: body.characterId,
-    personId: person?.id ?? null,
-    voice: Boolean(body.voice),
-    mode: "listen",
-    planOfferedAt: null,
-    messages: [{ role: "assistant", text: greeting, mode: "listen", at: new Date().toISOString() }],
-    createdAt: new Date().toISOString(),
-  };
-  await updateDb((d) => {
-    d.sessions.push(session);
-    const p = prev && d.sessions.find((s) => s.id === prev.id);
-    if (p?.followUp) p.followUp.dismissed = true;
-  });
-  return Response.json(session);
+  let session = await createSession(ctx, { characterId: body.characterId, personId: person?.id ?? null, voice: Boolean(body.voice) });
+  const first = { role: "assistant" as const, text: greeting, mode: "listen" as const, at: new Date().toISOString() };
+  session = await appendMessage(ctx, session, first);
+  if (prev?.followUp) await updateSession(ctx, prev.id, { followUp: { ...prev.followUp, dismissed: true } });
+
+  return Response.json({ ...session, messages: [first] });
 }
 
 function openingLine(id: CharacterId, name: string | null): string {

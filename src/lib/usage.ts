@@ -1,13 +1,23 @@
-import { getDb, updateDb } from "./db";
-import type { Db, UsageKind, UsageRecord } from "./types";
+import { createAdminClient } from "./supabase/server";
+import type { UsageKind } from "./types";
 
 /**
  * API 사용량 기록과 하루 사용 한도.
- * 내부에서는 달러로 계산하고, 화면에는 하루 한도 대비 퍼센트만 보여준다.
+ * 내부에서는 달러로 계산하고, 화면에는 본인 하루 한도 대비 퍼센트만 보여준다.
+ *
+ * 한도는 두 겹이다.
+ * - 사람마다 하루 한도: 한 사람이 많이 써도 다른 사람에게 영향이 없게
+ * - 서비스 전체 하루 한도: 사용자가 몰려도 요금이 폭주하지 않게
  */
 
-/** 하루 한도 (달러). .env.local 의 ONGI_DAILY_BUDGET_USD 로 바꾼다. */
-export const DAILY_BUDGET_USD = Number(process.env.ONGI_DAILY_BUDGET_USD) > 0 ? Number(process.env.ONGI_DAILY_BUDGET_USD) : 1;
+function budget(name: string, fallback: number): number {
+  const v = Number(process.env[name]);
+  return v > 0 ? v : fallback;
+}
+/** 1인 하루 한도 (달러) */
+export const USER_DAILY_BUDGET_USD = budget("ONGI_USER_DAILY_BUDGET_USD", 0.1);
+/** 서비스 전체 하루 한도 (달러) */
+export const GLOBAL_DAILY_BUDGET_USD = budget("ONGI_GLOBAL_DAILY_BUDGET_USD", 5);
 
 /** 100만 토큰당 가격 (달러). 캐시 쓰기는 입력의 1.25배(5분), 캐시 읽기는 0.1배. */
 const PRICES: { match: string; input: number; output: number }[] = [
@@ -38,54 +48,72 @@ export function costOf(model: string, u: ApiUsage): number {
   );
 }
 
-function localDay(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** 한국 날짜 YYYY-MM-DD. 서버가 어느 나라에 있든 자정 기준을 한국에 맞춘다. */
+function koreaDay(d = new Date()): string {
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-/** 응답 하나의 사용량을 저장한다. 실패해도 대화는 계속되게 오류를 삼킨다. */
-export async function recordUsage(kind: UsageKind, model: string, u: ApiUsage | null | undefined, sessionId?: string) {
+/**
+ * 응답 하나의 사용량을 저장한다. 사용자가 고치거나 지울 수 없도록 관리자 권한으로 쓴다.
+ * 실패해도 대화는 계속되게 오류를 삼킨다.
+ */
+export async function recordUsage(
+  userId: string,
+  kind: UsageKind,
+  model: string,
+  u: ApiUsage | null | undefined,
+  sessionId?: string,
+) {
   if (!u) return;
-  const rec: UsageRecord = {
-    at: new Date().toISOString(),
-    day: localDay(),
-    kind,
-    model,
-    sessionId,
-    input: u.input_tokens,
-    cacheWrite: u.cache_creation_input_tokens ?? 0,
-    cacheRead: u.cache_read_input_tokens ?? 0,
-    output: u.output_tokens,
-    searches: u.server_tool_use?.web_search_requests ?? 0,
-    cost: costOf(model, u),
-  };
-  try {
-    await updateDb((db) => {
-      db.usage ??= [];
-      db.usage.push(rec);
-      // 60일보다 오래된 기록은 지운다
-      const cutoff = localDay(new Date(Date.now() - 60 * 86_400_000));
-      if (db.usage[0] && db.usage[0].day < cutoff) db.usage = db.usage.filter((r) => r.day >= cutoff);
+  const { error } = await createAdminClient()
+    .from("usage")
+    .insert({
+      user_id: userId,
+      day: koreaDay(),
+      kind,
+      model,
+      session_id: sessionId ?? null,
+      input: u.input_tokens,
+      cache_write: u.cache_creation_input_tokens ?? 0,
+      cache_read: u.cache_read_input_tokens ?? 0,
+      output: u.output_tokens,
+      searches: u.server_tool_use?.web_search_requests ?? 0,
+      cost: costOf(model, u),
     });
-  } catch (err) {
-    console.error("usage record failed", err);
-  }
+  if (error) console.error("usage record failed", error);
 }
 
 export interface UsageStatus {
-  /** 오늘 한도 중 쓴 비율 (0~100, 반올림) */
+  /** 본인 오늘 한도 중 쓴 비율 (0~100, 반올림) */
   percent: number;
   exceeded: boolean;
+  /** 서비스 전체 한도에 닿아서 막힌 경우 */
+  serviceBusy?: boolean;
 }
 
-export function usageStatus(db: Db): UsageStatus {
-  const today = localDay();
-  const spent = (db.usage ?? []).filter((r) => r.day === today).reduce((sum, r) => sum + r.cost, 0);
-  const ratio = spent / DAILY_BUDGET_USD;
-  return { percent: Math.min(100, Math.round(ratio * 100)), exceeded: ratio >= 1 };
+async function spent(day: string, userId: string | null): Promise<number> {
+  const { data, error } = await createAdminClient().rpc("usage_spent", { p_day: day, p_user: userId });
+  if (error) {
+    console.error("usage sum failed", error);
+    return 0;
+  }
+  return Number(data) || 0;
 }
 
-export async function getUsageStatus(): Promise<UsageStatus> {
-  return usageStatus(await getDb());
+export async function getUsageStatus(userId: string): Promise<UsageStatus> {
+  const today = koreaDay();
+  const [mine, all] = await Promise.all([spent(today, userId), spent(today, null)]);
+  const ratio = mine / USER_DAILY_BUDGET_USD;
+  const serviceBusy = all >= GLOBAL_DAILY_BUDGET_USD;
+  return {
+    percent: Math.min(100, Math.round(ratio * 100)),
+    exceeded: ratio >= 1 || serviceBusy,
+    ...(serviceBusy ? { serviceBusy } : {}),
+  };
 }
 
-export const BUDGET_EXCEEDED_MESSAGE = "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요.";
+export function budgetExceededMessage(status: UsageStatus): string {
+  return status.serviceBusy && status.percent < 100
+    ? "지금 이용하는 분이 많아서 오늘은 대화를 더 할 수 없어요. 내일 다시 이야기해요."
+    : "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요.";
+}

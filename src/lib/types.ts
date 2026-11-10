@@ -20,7 +20,12 @@ export interface Person {
 
 export interface ChatImage {
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
-  data: string; // base64
+  /** base64. 브라우저가 보낼 때와, 서버가 Claude 에 넘기려고 내려받았을 때만 있다 */
+  data?: string;
+  /** Storage(chat-images) 안의 경로. DB 에는 이것만 저장한다 */
+  path?: string;
+  /** 화면에 보여줄 임시 서명 URL (1시간) */
+  url?: string;
 }
 
 export interface ChatMessage {
@@ -36,9 +41,9 @@ export interface ChatMessage {
 /** none: 아직 정리 안 함 / done: 정리함 / stale: 정리한 뒤 이어서 얘기함 */
 export type SummaryState = "none" | "done" | "stale";
 
-export function summaryState(s: Pick<Session, "summary" | "messages">): SummaryState {
-  if (!s.summary) return "none";
-  return s.messages.length > (s.summary.messageCount ?? s.messages.length) ? "stale" : "done";
+export function summaryState(summary: Summary | null | undefined, messageCount: number): SummaryState {
+  if (!summary) return "none";
+  return messageCount > (summary.messageCount ?? messageCount) ? "stale" : "done";
 }
 
 /** 한 메시지에 붙일 수 있는 사진 수 */
@@ -105,27 +110,13 @@ export interface Session {
   createdAt: string;
 }
 
-export interface Db {
-  persons: Person[];
-  sessions: Session[];
-  usage?: UsageRecord[];
+/** 목록 화면용: 메시지 없이 상담 정보와 마지막 메시지만 */
+export interface SessionMeta extends Omit<Session, "messages"> {
+  messageCount: number;
+  userMessageCount: number;
+  lastText: string | null;
+  lastAt: string | null;
 }
 
 export type UsageKind = "router" | "chat" | "summary" | "ask";
 
-/** API 호출 한 번의 사용량 */
-export interface UsageRecord {
-  at: string;
-  /** 로컬 날짜 YYYY-MM-DD (하루 한도 계산용) */
-  day: string;
-  kind: UsageKind;
-  model: string;
-  sessionId?: string;
-  input: number;
-  cacheWrite: number;
-  cacheRead: number;
-  output: number;
-  searches: number;
-  /** 달러 */
-  cost: number;
-}

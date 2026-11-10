@@ -1,0 +1,67 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+/**
+ * 1) 요청마다 로그인 토큰을 갱신해서 쿠키에 다시 써 준다 (서버 컴포넌트는 쿠키를 못 쓴다).
+ * 2) 로그인하지 않았으면 화면은 /login 으로 보내고, API 는 401 을 준다.
+ *
+ * 이건 화면 이동용 1차 확인일 뿐이다. 실제 권한 확인은 각 API 의 requireUser() 와 DB 의 RLS 가 한다.
+ */
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          // 토큰이 갱신된 응답을 CDN 이 캐시해서 다른 사람에게 주지 않도록
+          Object.entries(headers ?? {}).forEach(([k, v]) => response.headers.set(k, v));
+        },
+      },
+    },
+  );
+
+  // createServerClient 와 getClaims 사이에 다른 코드를 넣지 말 것 (무작위 로그아웃의 원인이 된다)
+  const { data } = await supabase.auth.getClaims();
+  const signedIn = Boolean(data?.claims);
+
+  const path = request.nextUrl.pathname;
+  const isPublic = path === "/login" || path.startsWith("/auth/");
+  if (!signedIn && !isPublic) {
+    if (path.startsWith("/api/")) {
+      return Response.json({ error: "로그인이 필요해요." }, { status: 401 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
+    return redirectWithCookies(url, response);
+  }
+  if (signedIn && path === "/login") {
+    return redirectWithCookies(new URL("/", request.url), response);
+  }
+  return response;
+}
+
+/** 리다이렉트할 때도 갱신된 쿠키를 같이 보내야 다음 요청에서 로그아웃되지 않는다. */
+function redirectWithCookies(url: URL, from: NextResponse) {
+  const res = NextResponse.redirect(url);
+  from.cookies.getAll().forEach((c) => res.cookies.set(c));
+  for (const h of ["cache-control", "expires", "pragma"]) {
+    const v = from.headers.get(h);
+    if (v) res.headers.set(h, v);
+  }
+  return res;
+}
+
+export const config = {
+  // 정적 파일과 이미지 최적화 요청은 건너뛴다
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+};

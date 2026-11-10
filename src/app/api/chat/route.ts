@@ -3,7 +3,8 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CHARACTERS } from "@/lib/characters";
 import { CHAT_MODEL, MissingKeyError, ROUTER_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
-import { getDb, updateDb } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { type Ctx, appendMessage, getPerson, getSession, loadImageData, updateSession } from "@/lib/db";
 import {
   ROUTER_SYSTEM,
   buildSystemPrompt,
@@ -20,7 +21,7 @@ import {
   type Mode,
   type Session,
 } from "@/lib/types";
-import { BUDGET_EXCEEDED_MESSAGE, getUsageStatus, recordUsage, usageStatus } from "@/lib/usage";
+import { budgetExceededMessage, getUsageStatus, recordUsage } from "@/lib/usage";
 
 const RouterSchema = z.object({
   mode: z.enum(["listen", "explore", "interpret", "react", "offer_plan", "plan"]),
@@ -42,33 +43,39 @@ interface ChatRequest {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser();
+  if ("response" in auth) return auth.response;
+  const { ctx } = auth;
   const body = (await request.json()) as ChatRequest;
   const text = body.text?.trim() ?? "";
-  const images = body.images ?? [];
+  // 브라우저가 보낸 사진은 base64 만 받는다 (경로를 보내 남의 파일을 가리키지 못하게)
+  const images: ChatImage[] = (body.images ?? [])
+    .filter((img) => typeof img.data === "string" && img.data.length > 0)
+    .map((img) => ({ mediaType: img.mediaType, data: img.data }));
   if (!text && images.length === 0) return Response.json({ error: "메시지를 입력해 주세요." }, { status: 400 });
   if (images.length > MAX_IMAGES) {
     return Response.json({ error: `사진은 한 번에 ${MAX_IMAGES}장까지 보낼 수 있어요.` }, { status: 400 });
   }
-  if (images.some((img) => img.data.length > MAX_IMAGE_BASE64)) {
+  if (images.some((img) => (img.data?.length ?? 0) > MAX_IMAGE_BASE64)) {
     return Response.json({ error: "이미지가 너무 커요. 한 장에 5MB 이하로 올려 주세요." }, { status: 400 });
   }
   if (text.length > MAX_INPUT_CHARS) {
     return Response.json({ error: `메시지는 ${MAX_INPUT_CHARS.toLocaleString()}자까지 보낼 수 있어요.` }, { status: 400 });
   }
 
-  const db = await getDb();
-  const session = db.sessions.find((s) => s.id === body.sessionId);
+  const session = await getSession(ctx, body.sessionId);
   if (!session) return Response.json({ error: "상담을 찾을 수 없어요." }, { status: 404 });
-  if (usageStatus(db).exceeded) {
-    return Response.json({ error: BUDGET_EXCEEDED_MESSAGE, limit: "daily" }, { status: 429 });
+  const usage = await getUsageStatus(ctx.userId);
+  if (usage.exceeded) {
+    return Response.json({ error: budgetExceededMessage(usage), limit: "daily" }, { status: 429 });
   }
-  if (session.messages.filter((m) => m.role === "user").length >= MAX_USER_MESSAGES) {
+  if (session.userMessageCount >= MAX_USER_MESSAGES) {
     return Response.json(
       { error: "이 상담은 충분히 길어졌어요. 정리하고 새 상담으로 이어가 주세요.", limit: "session" },
       { status: 400 },
     );
   }
-  const person = session.personId ? db.persons.find((p) => p.id === session.personId) ?? null : null;
+  const person = session.personId ? await getPerson(ctx, session.personId) : null;
   const character = CHARACTERS[session.characterId];
 
   const userMessage: ChatMessage = {
@@ -77,10 +84,8 @@ export async function POST(request: Request) {
     images: images.length ? images : undefined,
     at: new Date().toISOString(),
   };
-  const history = [...session.messages, userMessage];
-  await updateDb((d) => {
-    d.sessions.find((s) => s.id === session.id)?.messages.push(userMessage);
-  });
+  let meta = await appendMessage(ctx, session, userMessage);
+  const history = await withRecentImageData(ctx, [...session.messages, userMessage]);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -94,7 +99,7 @@ export async function POST(request: Request) {
         // 1) 이번 턴의 모드 판단
         const route = body.forceMode
           ? forcedRoute(body.forceMode)
-          : await decideMode(client, session, history, character.planEagerness);
+          : await decideMode(client, ctx.userId, session, history, character.planEagerness);
         send({ type: "mode", mode: route.mode });
 
         // 2) 캐릭터 답변 스트리밍
@@ -141,7 +146,7 @@ export async function POST(request: Request) {
             }
           }
           const final = await reply.finalMessage();
-          await recordUsage("chat", final.model ?? CHAT_MODEL, final.usage, session.id);
+          await recordUsage(ctx.userId, "chat", final.model ?? CHAT_MODEL, final.usage, session.id);
           if (final.stop_reason === "pause_turn") {
             // 웹 검색이 길어져 서버가 잠시 멈춘 경우: 이어서 진행
             messages = [...messages, { role: "assistant", content: final.content }];
@@ -160,14 +165,12 @@ export async function POST(request: Request) {
           mode: route.mode,
           at: new Date().toISOString(),
         };
-        await updateDb((d) => {
-          const s = d.sessions.find((x) => x.id === session.id);
-          if (!s) return;
-          s.messages.push(assistantMessage);
-          s.mode = route.mode;
-          if (route.mode === "offer_plan") s.planOfferedAt = s.messages.length - 1;
+        meta = await appendMessage(ctx, meta, assistantMessage);
+        await updateSession(ctx, session.id, {
+          mode: route.mode,
+          ...(route.mode === "offer_plan" ? { planOfferedAt: meta.messageCount - 1 } : {}),
         });
-        send({ type: "done", mode: route.mode, usage: (await getUsageStatus()).percent });
+        send({ type: "done", mode: route.mode, usage: (await getUsageStatus(ctx.userId)).percent });
       } catch (err) {
         console.error(err);
         send({ type: "error", message: apiErrorMessage(err) });
@@ -196,6 +199,7 @@ function forcedRoute(mode: Mode): RouterResult {
 
 async function decideMode(
   client: Anthropic,
+  userId: string,
   session: Session,
   history: ChatMessage[],
   planEagerness: number,
@@ -217,7 +221,7 @@ async function decideMode(
         },
       ],
     });
-    await recordUsage("router", res.model ?? ROUTER_MODEL, res.usage, session.id);
+    await recordUsage(userId, "router", res.model ?? ROUTER_MODEL, res.usage, session.id);
     const out = res.parsed_output;
     if (out) {
       // 질문만 계속하지 않도록: 알아가기는 연속 2번까지만
@@ -230,6 +234,20 @@ async function decideMode(
     console.error("router failed, keeping current mode", err);
   }
   return { mode: session.mode, reason: "판단 실패", need_search: false, search_queries: [], crisis: false };
+}
+
+/** Claude 에 사진을 함께 보내는 최근 메시지 수 (toApiMessages 와 맞춘다) */
+const IMAGE_WINDOW = 6;
+
+/** 최근 메시지의 사진만 Storage 에서 내려받아 base64 를 채운다. 오래된 사진은 텍스트로만 언급한다. */
+async function withRecentImageData(ctx: Ctx, history: ChatMessage[]): Promise<ChatMessage[]> {
+  return Promise.all(
+    history.map(async (m, i) =>
+      i >= history.length - IMAGE_WINDOW && m.images?.some((img) => !img.data)
+        ? { ...m, images: await loadImageData(ctx, m.images) }
+        : m,
+    ),
+  );
 }
 
 /** 이 상담에서 캐릭터가 해당 모드로 답한 횟수 */
@@ -267,14 +285,14 @@ function toApiMessages(history: ChatMessage[]): Anthropic.Beta.BetaMessageParam[
       return;
     }
     const imgs = messageImages(m);
-    const keepImages = imgs.length > 0 && i >= recent.length - 6;
+    const keepImages = imgs.length > 0 && i >= recent.length - IMAGE_WINDOW && imgs.every((img) => img.data);
     out.push({
       role: "user",
       content: keepImages
         ? [
             ...imgs.map((img) => ({
               type: "image" as const,
-              source: { type: "base64" as const, media_type: img.mediaType, data: img.data },
+              source: { type: "base64" as const, media_type: img.mediaType, data: img.data! },
             })),
             { type: "text" as const, text: imgs.length > 1 ? `(캡처 ${imgs.length}장, 순서대로)
 ${m.text}` : m.text },

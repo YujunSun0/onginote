@@ -46,6 +46,13 @@
 - 상담 탭에서 지금까지 나눈 상담을 모두 볼 수 있습니다. 정리 상태와 사람별로 걸러 볼 수 있습니다.
 - 홈에는 정리 카드의 할 것을 모은 체크리스트와 다가오는 생일이 나옵니다.
 
+### 마이페이지
+
+- 닉네임(1~20자)을 바꿀 수 있습니다. 처음에는 카카오·구글 이름이 들어가고, 홈 인사("○○, 왔구나!")에 쓰입니다.
+- 이메일, 로그인 방식, 가입일, 오늘 사용량, 사람·상담·정리 개수를 보여줍니다.
+- 내 기록 전체를 PDF로 받을 수 있습니다. 인쇄용 화면(`/me/print`)이 열리면 인쇄 창에서 "PDF로 저장"을 고릅니다. 사람, 상담, 정리 카드, 사진이 모두 들어갑니다. 다른 서비스로 옮길 때 쓰는 JSON 파일도 받을 수 있습니다.
+- 로그아웃과 회원 탈퇴가 있습니다. 탈퇴는 "탈퇴"를 직접 입력해야 진행됩니다.
+
 ### 화면 크기
 
 - 모바일과 태블릿에서는 한 줄 화면에 하단 메뉴를 씁니다.
@@ -54,7 +61,7 @@
 
 ## 시작하기
 
-Node.js 20 이상과 Claude API 키가 필요합니다.
+Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 
 1. https://console.anthropic.com 에서 Settings → API Keys → Create Key로 키를 발급합니다. 결제 수단을 등록하고 크레딧을 충전해야 쓸 수 있습니다.
 2. 패키지를 설치하고 환경 변수 파일을 만듭니다.
@@ -62,22 +69,47 @@ Node.js 20 이상과 Claude API 키가 필요합니다.
    npm install
    cp .env.example .env.local
    ```
-   `.env.local`을 열어 `ANTHROPIC_API_KEY=` 뒤에 발급받은 키를 붙여넣습니다. 이 파일은 깃에 올라가지 않습니다.
-3. 개발 서버를 실행합니다.
+   `.env.local`에 Claude 키와 아래 Supabase 값을 채웁니다. 이 파일은 깃에 올라가지 않습니다.
+3. Supabase를 설정합니다 (아래 "Supabase 설정").
+4. 개발 서버를 실행합니다.
    ```bash
    npm run dev
    ```
-   브라우저에서 http://localhost:3000 을 엽니다. 음성 기능은 Chrome이나 Edge에서만 동작합니다.
+   브라우저에서 http://localhost:3000 을 열면 로그인 화면이 나옵니다. 음성 기능은 Chrome이나 Edge에서만 동작합니다.
+
+### Supabase 설정
+
+1. https://supabase.com 에서 프로젝트를 만듭니다. 지역은 Northeast Asia (Seoul)를 고릅니다.
+2. Project Settings → API Keys에서 값을 복사해 `.env.local`에 넣습니다.
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
+3. SQL Editor에 `supabase/migrations/0001_init.sql`, `0002_withdrawal.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록 테이블이 만들어집니다.
+4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
+5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
+   - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.
+   - **Kakao**: https://developers.kakao.com 에서 앱을 만들고 카카오 로그인을 켭니다. Redirect URI에 위 콜백 주소를 넣습니다. 동의항목에서 닉네임, 프로필 사진, 카카오계정(이메일)을 켭니다. 이메일 동의항목은 비즈 앱에서만 켤 수 있어서, 앱 설정에서 개인 개발자 비즈 앱으로 전환해야 합니다. REST API 키를 Client ID로, 보안 메뉴의 Client Secret 코드를 Client Secret으로 Supabase에 붙여넣습니다.
+6. 예전 `data/db.json` 데이터가 있으면 앱에 한 번 로그인한 뒤 옮깁니다.
+   ```bash
+   node --env-file=.env.local scripts/import-db-json.mjs <로그인한 이메일> --dry-run   # 옮길 내용 확인
+   node --env-file=.env.local scripts/import-db-json.mjs <로그인한 이메일>
+   ```
 
 ### 환경 변수
 
 | 이름 | 기본값 | 설명 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | (필수) | Claude API 키 |
+| `NEXT_PUBLIC_SUPABASE_URL` | (필수) | Supabase 프로젝트 주소 |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | (필수) | Supabase 공개 키. 로그인한 사용자 권한으로만 동작합니다 |
+| `SUPABASE_SECRET_KEY` | (필수) | Supabase 관리자 키. 사용량 기록과 합계에만 서버에서 씁니다 |
 | `ONGI_CHAT_MODEL` | `claude-sonnet-5-5` | 캐릭터 답변에 쓰는 모델. `claude-haiku-5-5`로 바꾸면 더 저렴하고, `claude-opus-5-5`로 바꾸면 품질이 올라갑니다 |
 | `ONGI_ROUTER_MODEL` | `claude-haiku-5-5` | 모드 판단에 쓰는 모델 |
 | `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드와 프로필 물어보기에 쓰는 모델 |
-| `ONGI_DAILY_BUDGET_USD` | `1` | 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
+| `ONGI_USER_DAILY_BUDGET_USD` | `0.1` | 1인 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
+| `ONGI_GLOBAL_DAILY_BUDGET_USD` | `5` | 서비스 전체 하루 사용 한도(달러) |
+| `ONGI_EMAIL_HASH_KEY` | (필수) | 탈퇴한 이메일을 해시할 때 쓰는 서버 비밀키. 바꾸면 기존 재가입 제한이 풀립니다 |
+| `ONGI_REJOIN_BLOCK_DAYS` | `30` | 탈퇴 후 같은 이메일로 다시 가입할 수 없는 기간(일) |
 
 ## 폴더 구조
 
@@ -90,19 +122,30 @@ src/
 │  │  ├─ new/                   새 상담 (캐릭터와 인물 고르기)
 │  │  └─ chat/[id]/             채팅 화면, chat/[id]/summary 정리 카드
 │  ├─ people/                   인물 목록, 등록, 프로필 (PC에서 사람 목록 사이드바)
+│  ├─ me/                       마이페이지 (닉네임, 로그아웃, 탈퇴), me/print 기록 PDF용 인쇄 화면
+│  ├─ login/                    로그인 (카카오, 구글)
+│  ├─ auth/                     로그인 콜백, 로그아웃
 │  └─ api/
 │     ├─ chat/                  모드 판단과 답변 스트리밍 (NDJSON)
 │     ├─ sessions/              상담 생성·조회, [id]/summary 정리, [id]/apply 프로필 저장
-│     └─ persons/               인물 CRUD, [id]/ask 물어보기
+│     ├─ persons/               인물 CRUD, [id]/ask 물어보기
+│     ├─ usage/                 오늘 내 사용량 (퍼센트)
+│     └─ me/                    내 정보·닉네임·탈퇴, me/export 기록 내려받기
+├─ proxy.ts                     로그인 토큰 갱신, 로그인 안 했으면 /login 으로
 ├─ components/                  캐릭터 얼굴, 아이콘, 하단 메뉴와 PC 세로 메뉴, 목록 사이드바, 인물 패널
 └─ lib/
    ├─ characters.ts             캐릭터 성격, 말투, 목소리 설정
    ├─ prompts.ts                안전 규칙, 모드별 지시, 모드 판단 프롬프트
    ├─ claude.ts                 Claude 클라이언트, 모델 설정, 오류 메시지
-   ├─ db.ts                     JSON 파일 저장소 (data/db.json)
+   ├─ db.ts                     Supabase 저장소 (인물, 상담, 메시지, 사진)
+   ├─ auth.ts                   API 에서 로그인 확인 (requireUser)
+   ├─ usage.ts                  사용량 기록, 1인·전체 하루 한도
+   ├─ supabase/                 서버·브라우저·관리자용 Supabase 클라이언트
    ├─ types.ts                  데이터 타입
    ├─ format.ts                 조사 처리, 날짜, 말풍선 나누기
    └─ speech.ts                 브라우저 음성 인식과 합성
+supabase/migrations/            DB 테이블, RLS, 사진 저장소를 만드는 SQL
+scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 옮기는 스크립트
 ```
 
 메시지 하나를 보내면 서버에서 두 단계를 거칩니다.
@@ -112,17 +155,20 @@ src/
 
 ## 데이터와 개인정보
 
-- 모든 데이터는 이 컴퓨터의 `data/db.json`에만 저장되며 깃에는 올라가지 않습니다.
+- 데이터는 Supabase(Postgres)에 저장되고, 모든 테이블에 RLS를 걸어 **로그인한 본인 데이터만** 읽고 쓸 수 있습니다. 서버 코드에 실수가 있어도 DB가 다른 사람의 상담을 내주지 않습니다.
+- 대화 캡처 사진은 비공개 저장소(`chat-images`)에 `본인 id/상담 id/` 경로로 올리고, 화면에는 1시간짜리 서명 URL로만 보여줍니다. 상담이나 인물을 지우면 사진도 같이 지웁니다.
+- 사용량 기록은 서버만 쓸 수 있어서, 사용자가 지우거나 고쳐 하루 한도를 우회할 수 없습니다.
+- 탈퇴하면 사진 폴더와 계정을 지우고, 인물·상담·메시지·프로필은 DB가 함께 지웁니다. 사용량 기록은 서비스 전체 한도 계산을 위해 계정 연결만 끊고 남깁니다.
+- 탈퇴 후 30일 동안은 같은 이메일로 다시 가입할 수 없습니다. 이메일 원문 대신 서버 비밀키로 만든 HMAC 해시만 보관하고, 기간이 지나면 지웁니다. 이메일이 없는 로그인(카카오에서 이메일 동의를 안 한 경우)은 받지 않습니다.
 - 정리할 때 건강, 성적 지향, 종교, 연락처, 주소 같은 민감한 정보는 프로필 저장 제안에서 뺍니다.
-- 배포할 때는 `src/lib/db.ts`만 실제 데이터베이스로 바꾸면 됩니다.
 
 ## 비용과 사용 제한
 
 메시지를 하나 보낼 때마다 모델을 두 번 부릅니다. 한 번은 모드 판단, 한 번은 답변입니다. 비용 대부분은 답변 쪽에서 나옵니다.
 
 - **캐싱**: 시스템 프롬프트와 대화 기록 앞부분을 캐시합니다. 다음 메시지에서는 이미 보낸 부분을 1/10 가격으로 읽습니다. 캐시가 깨지지 않도록 요청 전체의 effort는 고정하고, 해석과 플랜처럼 깊게 생각할 턴만 모드 지시 메시지에서 effort를 올립니다. 보내는 대화 범위도 한 칸씩이 아니라 10개 단위로 밉니다.
-- **사용량 기록**: API 응답마다 토큰 수와 금액을 `data/db.json`의 `usage`에 남깁니다. 60일이 지난 기록은 지웁니다.
-- **하루 한도**: 오늘 쓴 금액이 `ONGI_DAILY_BUDGET_USD`에 닿으면 대화와 물어보기를 막습니다. 정리하기는 그날 상담을 마무리할 수 있도록 계속 쓸 수 있습니다. 사용자에게는 금액 대신 한도 대비 퍼센트를 보여줍니다. 홈 화면에 항상 표시하고, 채팅에서는 80%부터 알립니다.
+- **사용량 기록**: API 응답마다 사용자, 토큰 수, 금액을 `usage` 테이블에 남깁니다.
+- **하루 한도 (두 겹)**: 내가 오늘 쓴 금액이 `ONGI_USER_DAILY_BUDGET_USD`에 닿거나, 서비스 전체가 오늘 쓴 금액이 `ONGI_GLOBAL_DAILY_BUDGET_USD`에 닿으면 대화와 물어보기를 막습니다. 날짜는 서버 위치와 상관없이 한국 시간 자정에 바뀝니다. 정리하기는 그날 상담을 마무리할 수 있도록 계속 쓸 수 있습니다. 사용자에게는 금액 대신 한도 대비 퍼센트를 보여줍니다. 홈 화면에 항상 표시하고, 채팅에서는 80%부터 알립니다.
 - **상담 길이**: 상담 하나에서 내 메시지는 40개까지 보낼 수 있고, 30개부터 남은 횟수를 알려줍니다. 대화가 길수록 메시지마다 다시 보내는 양이 늘어나기 때문입니다. 다 차면 정리하고 새 상담으로 이어가도록 안내합니다.
 - **메시지 길이**: 한 번에 2,000자, 사진 5장까지 보낼 수 있습니다.
 
@@ -134,6 +180,6 @@ src/
 - [ ] 캐릭터 전용 TTS 목소리
 - [ ] 선톡 웹 푸시 알림
 - [x] PC용 2단 레이아웃
-- [ ] 로그인과 실제 데이터베이스, 사용자별 사용량 제한
+- [x] 로그인과 실제 데이터베이스, 사용자별 사용량 제한
 - [ ] 개인정보처리방침, AI 생성물 고지
 - [ ] PWA로 먼저 내고 앱으로 출시

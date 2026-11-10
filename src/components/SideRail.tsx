@@ -12,15 +12,19 @@ export function SideRail() {
 
   // 화면을 옮길 때마다, 그리고 답변이 끝날 때마다 사용량을 다시 읽는다
   useEffect(() => {
+    if (path === "/login" || path === "/me/print") return;
     const load = () =>
       fetch("/api/usage")
         .then((r) => r.json())
-        .then((u: { percent: number }) => setUsage(u.percent))
+        .then((u: { percent?: number }) => setUsage(typeof u.percent === "number" ? u.percent : null))
         .catch(() => {});
     load();
     window.addEventListener("onginote:sessions", load);
     return () => window.removeEventListener("onginote:sessions", load);
   }, [path]);
+
+  // 로그인 화면과 인쇄용 기록 화면에는 메뉴를 띄우지 않는다
+  if (path === "/login" || path === "/me/print") return null;
 
   const r = 13;
   const c = 2 * Math.PI * r;

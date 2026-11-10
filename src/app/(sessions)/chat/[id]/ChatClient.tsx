@@ -599,7 +599,8 @@ function UsageMeter({ percent }: { percent: number }) {
 /** 보낸 사진들: 1장은 크게, 여러 장은 2열 격자 */
 function SentImages({ images }: { images: ChatImage[] }) {
   if (images.length === 0) return null;
-  const src = (img: ChatImage) => `data:${img.mediaType};base64,${img.data}`;
+  // 저장된 사진은 서명 URL, 방금 보낸 사진은 아직 base64
+  const src = (img: ChatImage) => img.url ?? `data:${img.mediaType};base64,${img.data}`;
   if (images.length === 1) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={src(images[0])} alt="보낸 대화 캡처" className="max-h-64 rounded-2xl border border-line" />;
