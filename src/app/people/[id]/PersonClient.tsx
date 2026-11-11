@@ -123,7 +123,7 @@ export default function PersonClient({ id }: { id: string }) {
             <h2 className="font-display text-[17px]">연락 스타일</h2>
             <InlineText value={person.contactStyle} placeholder="예: 저녁에 몰아서 답장" onSave={(v) => patch({ contactStyle: v })} />
           </div>
-          <ChipList title="성격 메모" items={person.notes} tone="text" onAdd={(v) => addItem("notes", v)} onRemove={(v) => removeItem("notes", v)} />
+          <ChipList title="메모" items={person.notes} tone="text" onAdd={(v) => addItem("notes", v)} onRemove={(v) => removeItem("notes", v)} />
         </section>
         </div>
 

@@ -61,7 +61,7 @@ export function PersonPanel({ person, onClose }: { person: Person; onClose: () =
       )}
       {person.notes.length > 0 && (
         <div>
-          <p className="mb-1.5 text-xs font-bold text-ink-soft">성격 메모</p>
+          <p className="mb-1.5 text-xs font-bold text-ink-soft">메모</p>
           <ul className="flex list-disc flex-col gap-1 pl-4.5 text-[13px] leading-relaxed text-ink-soft">
             {person.notes.map((n) => <li key={n}>{n}</li>)}
           </ul>

@@ -13,7 +13,7 @@ export interface Person {
   likes: string[];
   dislikes: string[];
   contactStyle?: string;
-  notes: string[]; // 성격 메모
+  notes: string[]; // 메모 (성격, 습관 등 자유롭게)
   timeline: { date: string; text: string }[];
   createdAt: string;
 }

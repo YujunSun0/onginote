@@ -30,7 +30,7 @@ export function personContext(person: Person | null): string {
     person.likes.length > 0 && `좋아하는 것: ${person.likes.join(", ")}`,
     person.dislikes.length > 0 && `싫어하는 것: ${person.dislikes.join(", ")}`,
     person.contactStyle && `연락 스타일: ${person.contactStyle}`,
-    person.notes.length > 0 && `성격 메모: ${person.notes.join(" / ")}`,
+    person.notes.length > 0 && `메모: ${person.notes.join(" / ")}`,
     person.timeline.length > 0 &&
       `지난 일: ${person.timeline.map((t) => `${t.date} ${t.text}`).join(" / ")}`,
   ].filter(Boolean);

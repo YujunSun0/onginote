@@ -230,7 +230,7 @@ function PersonBlock({ p }: { p: Person }) {
     ["연락 스타일", p.contactStyle],
     ["좋아하는 것", p.likes.join(", ") || undefined],
     ["싫어하는 것", p.dislikes.join(", ") || undefined],
-    ["성격 메모", p.notes.join(" / ") || undefined],
+    ["메모", p.notes.join(" / ") || undefined],
   ];
   return (
     <div className="rounded-2xl border border-line p-4 print:break-inside-avoid">

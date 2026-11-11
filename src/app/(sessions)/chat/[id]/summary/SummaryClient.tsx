@@ -13,7 +13,7 @@ const FIELD_LABEL: Record<ProfileField, string> = {
   likes: "좋아하는 것",
   dislikes: "싫어하는 것",
   contactStyle: "연락 스타일",
-  notes: "성격 메모",
+  notes: "메모",
   timeline: "우리 이야기",
   mbti: "MBTI",
   age: "나이",
