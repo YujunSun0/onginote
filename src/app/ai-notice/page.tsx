@@ -30,7 +30,7 @@ export default function AiNoticePage() {
 
       <Section title="표시하는 곳">
         <ul>
-          <li>채팅에서 캐릭터의 말풍선에는 &lsquo;AI가 만든 답변&rsquo;이라고 표시해요.</li>
+          <li>상담 화면 맨 위에 캐릭터가 AI라는 안내를 보여줘요.</li>
           <li>정리 카드와 내려받은 기록(PDF)에는 &lsquo;AI가 정리한 내용&rsquo;이라고 표시해요.</li>
         </ul>
       </Section>

@@ -1,7 +1,7 @@
 export type CharacterId = "mongle" | "yeoul" | "olly" | "daon";
 
 /** 상담 모드. 고정된 단계가 아니라 대화 흐름에 따라 오간다. */
-export type Mode = "listen" | "explore" | "interpret" | "react" | "offer_plan" | "plan";
+export type Mode = "chat" | "listen" | "explore" | "interpret" | "react" | "offer_plan" | "plan";
 
 export interface Person {
   id: string;

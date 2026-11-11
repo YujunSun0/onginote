@@ -24,7 +24,7 @@ import {
 import { budgetExceededMessage, getUsageStatus, recordUsage } from "@/lib/usage";
 
 const RouterSchema = z.object({
-  mode: z.enum(["listen", "explore", "interpret", "react", "offer_plan", "plan"]),
+  mode: z.enum(["chat", "listen", "explore", "interpret", "react", "offer_plan", "plan"]),
   reason: z.string(),
   need_search: z.boolean(),
   search_queries: z.array(z.string()),
@@ -104,8 +104,9 @@ export async function POST(request: Request) {
 
         // 2) 캐릭터 답변 스트리밍
         const deep = route.mode === "plan" || route.mode === "interpret";
-        const searched = deep && route.need_search;
-        let instruction = modeInstruction(route.mode, searched, countMode(history, "interpret"));
+        // 검색은 해석·플랜에서 필요할 때, 그리고 수다 중에 사용자가 직접 찾아 달라고 했을 때
+        const searched = (deep || route.mode === "chat") && route.need_search;
+        let instruction = modeInstruction(route.mode, searched, countMode(history, "interpret"), countStreak(history, "chat"));
         if (searched && route.search_queries.length > 0) {
           instruction += `\n필요하면 web_search 도구로 이런 검색어를 찾아봐: ${route.search_queries.join(", ")}`;
         }
@@ -204,7 +205,7 @@ async function decideMode(
   history: ChatMessage[],
   planEagerness: number,
 ): Promise<RouterResult> {
-  const exploreStreak = countExploreStreak(history);
+  const exploreStreak = countStreak(history, "explore");
   const interpretCount = countMode(history, "interpret");
   const turnsSinceOffer =
     session.planOfferedAt === null ? "없음" : `${history.length - 1 - session.planOfferedAt}개 메시지 전`;
@@ -255,13 +256,13 @@ function countMode(history: ChatMessage[], mode: Mode): number {
   return history.filter((m) => m.role === "assistant" && m.mode === mode).length;
 }
 
-/** 마지막부터 거꾸로 세어, 캐릭터가 연속으로 알아가기(질문) 모드였던 횟수 */
-function countExploreStreak(history: ChatMessage[]): number {
+/** 마지막부터 거꾸로 세어, 캐릭터가 연속으로 이 모드였던 횟수 (첫 인사는 세지 않는다) */
+function countStreak(history: ChatMessage[], mode: Mode): number {
   let n = 0;
   for (let i = history.length - 1; i >= 0; i--) {
     const m = history[i];
     if (m.role === "user") continue;
-    if (m.mode !== "explore") break;
+    if (m.mode !== mode) break;
     n++;
   }
   return n;

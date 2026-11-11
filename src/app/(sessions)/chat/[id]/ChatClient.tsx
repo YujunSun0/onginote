@@ -24,6 +24,7 @@ import {
 } from "@/lib/types";
 
 const MODE_LABEL: Record<Mode, string> = {
+  chat: "가볍게 얘기하는 중",
   listen: "지금은 들어주는 중",
   explore: "상황을 알아가는 중",
   interpret: "상황을 풀어보는 중",
@@ -311,10 +312,6 @@ export default function ChatClient({ id }: { id: string }) {
                 </div>
               </div>
             ))}
-            {/* AI 기본법: 생성형 AI 결과물임을 표시한다. 이어지는 캐릭터 메시지가 있으면 마지막에만 */}
-            {m.text && messages[i + 1]?.role !== "assistant" && (
-              <p className="-mt-1.5 pl-10 text-[10px] text-muted">AI가 만든 답변</p>
-            )}
           </>
         ) : (
           <div className="flex max-w-[78%] flex-col items-end gap-1.5 self-end">
