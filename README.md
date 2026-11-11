@@ -91,7 +91,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
-3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제가 만들어집니다.
+3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`, `0006_billing.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제, 결제가 만들어집니다.
 4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
 5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
    - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.
@@ -111,7 +111,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | (필수) | Supabase 공개 키. 로그인한 사용자 권한으로만 동작합니다 |
 | `SUPABASE_SECRET_KEY` | (필수) | Supabase 관리자 키. 사용량 기록과 합계에만 서버에서 씁니다 |
 | `ONGI_FREE_CHAT_MODEL` | `claude-haiku-5-5` | 무료 요금제의 캐릭터 답변 모델 |
-| `ONGI_PLUS_CHAT_MODEL` | `claude-sonnet-5-5` | Plus 요금제의 캐릭터 답변 모델 |
+| `ONGI_PLUS_CHAT_MODEL` | `claude-haiku-5-5` | Plus 요금제의 캐릭터 답변 모델. 기본은 무료와 같고, Plus는 양을 늘린다 |
 | `ONGI_ROUTER_MODEL` | `claude-haiku-5-5` | 모드 판단에 쓰는 모델 |
 | `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드와 프로필 물어보기에 쓰는 모델 |
 | `ONGI_FREE_DAILY_USD` / `ONGI_PLUS_DAILY_USD` | `0.1` / `0.5` | 1인 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
@@ -120,6 +120,9 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 | `ONGI_PLUS_PERIOD_USD` | `8` | Plus 구독 기간(한 달) 사용 한도(달러). 넘으면 남은 기간은 무료 수준으로 씁니다 |
 | `ONGI_GLOBAL_DAILY_BUDGET_USD` | `5` | 서비스 전체 하루 사용 한도의 기본값(달러) |
 | `ONGI_GLOBAL_PER_PLUS_USD` | `0.5` | Plus 회원 한 명당 서비스 전체 한도에 더하는 금액(달러) |
+| `NEXT_PUBLIC_TOSS_CLIENT_KEY` | (결제 시 필수) | 토스페이먼츠 "API 개별 연동 키"의 클라이언트 키 (`test_ck_`/`live_ck_`). 결제위젯 키(`gck`)는 자동결제에 쓸 수 없습니다 |
+| `TOSS_SECRET_KEY` | (결제 시 필수) | 같은 곳의 시크릿 키 (`test_sk_`/`live_sk_`). 서버 전용 |
+| `CRON_SECRET` | (결제 시 필수) | 자동 결제 실행(`/api/billing/renew`)을 부를 때 쓰는 비밀값 |
 | `ONGI_EMAIL_HASH_KEY` | (필수) | 탈퇴한 이메일을 해시할 때 쓰는 서버 비밀키. 바꾸면 기존 재가입 제한이 풀립니다 |
 | `ONGI_REJOIN_BLOCK_DAYS` | `30` | 탈퇴 후 같은 이메일로 다시 가입할 수 없는 기간(일) |
 
@@ -186,7 +189,7 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 
   | | 무료 | Plus |
   |---|---|---|
-  | 캐릭터 답변 모델 | Haiku | Sonnet |
+  | 캐릭터 답변 모델 | Haiku | Haiku (같음) |
   | 하루 한도 | $0.1 | $0.5 |
   | 하루 웹 검색 | 3회 | 20회 |
   | 상담 하나당 내 메시지 | 40개 | 80개 |
@@ -196,6 +199,23 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 - **하루 한도**: 내가 오늘 쓴 금액이 요금제 하루 한도에 닿거나, 서비스 전체가 오늘 쓴 금액이 전체 한도(`ONGI_GLOBAL_DAILY_BUDGET_USD` + Plus 인원 × `ONGI_GLOBAL_PER_PLUS_USD`)에 닿으면 대화와 물어보기를 막습니다. 검색 횟수를 다 쓴 날은 검색 없이 답하고, 캐릭터가 그 사실을 한마디로 밝힙니다. 날짜는 서버 위치와 상관없이 한국 시간 자정에 바뀝니다. 정리하기는 그날 상담을 마무리할 수 있도록 계속 쓸 수 있습니다. 사용자에게는 금액 대신 한도 대비 퍼센트를 보여줍니다. 홈 화면에 항상 표시하고, 채팅에서는 80%부터 알립니다.
 - **상담 길이**: 상담 하나에서 내 메시지는 요금제에 따라 40개(Plus 80개)까지 보낼 수 있고, 10개 남았을 때부터 남은 횟수를 알려줍니다. 대화가 길수록 메시지마다 다시 보내는 양이 늘어나기 때문입니다. 다 차면 정리하고 새 상담으로 이어가도록 안내합니다.
 - **메시지 길이**: 한 번에 2,000자, 사진 5장까지 보낼 수 있습니다.
+
+## Plus 결제 (토스페이먼츠 자동결제)
+
+월 15,000원(부가세 포함) 구독입니다. 코드는 `src/lib/billing.ts`에 모여 있습니다.
+
+- **가입**: `/plus`에서 정기결제에 동의하고 카드를 등록합니다. 돌아온 `/plus/success`에서 서버가 빌링키를 받고 바로 첫 달을 결제합니다.
+- **매달 결제**: 토스는 결제 일정을 챙겨 주지 않습니다. 하루 한 번 `POST /api/billing/renew` (헤더 `Authorization: Bearer $CRON_SECRET`)를 부르면 결제일이 된 구독을 결제합니다. 주문번호가 기간과 시도 횟수로 정해지고 결제 전에 `payments` 행을 먼저 넣어서, 여러 번 불러도 한 번만 결제됩니다.
+- **결제 실패**: 하루 한 번씩 3번 더 시도하고, 그동안은 Plus를 유지합니다. 모두 실패하면 무료로 돌아가고 빌링키를 지웁니다. 키나 상점 설정 오류는 고객의 결제 실패로 세지 않고 실행을 멈춥니다.
+- **해지**: 다음 결제만 하지 않고 남은 기간은 Plus로 씁니다. 기간 안에는 해지 취소가 됩니다. 기간이 끝나면 빌링키를 지웁니다.
+- **환불**: 마지막 결제 후 7일 안이고 그 뒤로 상담을 한 번도 하지 않았으면 전액 환불하고 바로 무료로 돌아갑니다.
+- **보관**: 빌링키는 `billing_customers`에 두고 서버만 읽습니다. 결제 내역(`payments`)은 본인이 읽기만 하고, 탈퇴해도 계정 연결만 끊고 남깁니다. 탈퇴하면 빌링키를 토스에서 지웁니다.
+- **테스트**: 테스트 키로는 실제 돈이 나가지 않습니다. 카드 번호는 앞 6자리만 실제 카드처럼 맞으면 되는데, 상점이 받지 않는 카드 종류면 `NOT_SUPPORTED_CARD_TYPE`이 납니다(BC 계열 `9410…`은 됨). 개발 중에는 아래처럼 직접 부릅니다.
+
+  ```
+  curl -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/billing/renew
+  ```
+- **실제 서비스 전**: 토스와 자동결제 계약·심사를 거쳐 `live_` 키로 바꾸고, 배포 환경에서 하루 한 번 위 주소를 부르는 스케줄러를 붙입니다.
 
 
 ## 앞으로 할 일

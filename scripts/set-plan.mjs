@@ -34,9 +34,13 @@ if (plan === "free") {
   const { error } = await admin.from("subscriptions").upsert({
     user_id: user.id,
     plan: "plus",
-    status: "active",
+    status: plan === "expire" ? "expired" : "active",
     current_period_start: new Date(start).toISOString(),
     current_period_end: new Date(end).toISOString(),
+    retry_count: 0,
+    next_retry_at: null,
+    grace_until: null,
+    canceled_at: null,
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;

@@ -478,9 +478,14 @@ export default function ChatClient({ id }: { id: string }) {
           <p className="flex-1 text-sm">
             오늘 대화량을 다 썼어요
             <span className="block text-xs text-muted">
-              내일 다시 이야기해요. 정리하기는 지금도 할 수 있어요{plan?.id === "free" ? " · Plus로 바꾸면 더 이야기할 수 있어요" : ""}
+              내일 다시 이야기해요. 정리하기는 지금도 할 수 있어요
             </span>
           </p>
+          {plan?.id === "free" && (
+            <Link href="/plus" className="flex h-11 shrink-0 items-center rounded-full bg-accent px-4 text-sm font-bold text-white">
+              Plus 보기
+            </Link>
+          )}
         </div>
       ) : (
       <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5 lg:rounded-none lg:px-8 lg:*:mx-auto lg:*:max-w-3xl">

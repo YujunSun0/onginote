@@ -37,7 +37,8 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLegal = LEGAL_PATHS.includes(path);
-  const isPublic = path === "/login" || path.startsWith("/auth/") || isLegal;
+  // /api/billing/renew 는 스케줄러가 부른다 (로그인 대신 CRON_SECRET 으로 확인)
+  const isPublic = path === "/login" || path.startsWith("/auth/") || isLegal || path === "/api/billing/renew";
   if (!signedIn && !isPublic) {
     if (path.startsWith("/api/")) {
       return Response.json({ error: "로그인이 필요해요." }, { status: 401 });

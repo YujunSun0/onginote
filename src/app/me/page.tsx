@@ -43,6 +43,12 @@ function PlanCard({ plan }: { plan: Me["plan"] }) {
         </span>
       </div>
       <p className="pt-2 text-sm text-ink-soft">{note}</p>
+      <Link
+        href="/plus"
+        className={`mt-3 flex h-11 items-center justify-center rounded-full text-sm font-bold ${plus ? "border border-line-strong bg-white" : "bg-accent text-white"}`}
+      >
+        {plus ? "구독 관리" : "Plus 알아보기"}
+      </Link>
       {plus && plan.periodCapped && (
         <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
           이번 달 Plus 사용량을 다 써서, 다음 결제일까지는 무료와 같은 수준으로 이어서 쓸 수 있어요.

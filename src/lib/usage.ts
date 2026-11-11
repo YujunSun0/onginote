@@ -104,7 +104,7 @@ export interface Allowance extends UsageStatus {
 
 type SubStatus = "active" | "canceled" | "past_due";
 interface Snapshot {
-  sub: { status: SubStatus; current_period_start: string; current_period_end: string } | null;
+  sub: { status: SubStatus | "expired"; current_period_start: string; current_period_end: string; grace_until: string | null } | null;
   mine_day: number;
   searches_day: number;
   mine_period: number;
@@ -117,7 +117,9 @@ export async function getAllowance(userId: string): Promise<Allowance> {
   if (error) console.error("usage snapshot failed", error);
   const snap = (data ?? {}) as Partial<Snapshot>;
   const sub = snap.sub ?? null;
-  const isPlus = !!sub && new Date(sub.current_period_end).getTime() > Date.now();
+  // 기간이 끝났어도 결제 재시도 중(grace_until)이면 Plus 를 유지한다
+  const until = sub ? Math.max(new Date(sub.current_period_end).getTime(), sub.grace_until ? new Date(sub.grace_until).getTime() : 0) : 0;
+  const isPlus = !!sub && sub.status !== "expired" && until > Date.now();
 
   const plus = PLANS.plus;
   const periodCapped = isPlus && plus.periodUsd !== null && Number(snap.mine_period ?? 0) >= plus.periodUsd;
@@ -130,7 +132,7 @@ export async function getAllowance(userId: string): Promise<Allowance> {
   return {
     plan: isPlus ? "plus" : "free",
     plusUntil: isPlus ? sub.current_period_end : null,
-    plusStatus: isPlus ? sub.status : null,
+    plusStatus: isPlus ? (sub.status as SubStatus) : null,
     periodCapped,
     percent: Math.min(100, Math.round(ratio * 100)),
     exceeded: ratio >= 1 || serviceBusy,

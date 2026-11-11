@@ -32,7 +32,8 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     periodUsd: null,
   },
   plus: {
-    chatModel: process.env.ONGI_PLUS_CHAT_MODEL || "claude-sonnet-5-5",
+    // 무료와 같은 모델: 답변 품질 차이는 작고 비용은 30배라, Plus 는 "양"을 늘린다 (2026-11-11 결정)
+    chatModel: process.env.ONGI_PLUS_CHAT_MODEL || "claude-haiku-5-5",
     dailyUsd: num("ONGI_PLUS_DAILY_USD", 0.5),
     dailySearches: num("ONGI_PLUS_DAILY_SEARCHES", 20),
     sessionMessages: num("ONGI_PLUS_SESSION_MESSAGES", 80),
@@ -45,3 +46,11 @@ export const GLOBAL_BASE_DAILY_USD = num("ONGI_GLOBAL_DAILY_BUDGET_USD", 5);
 export const GLOBAL_PER_PLUS_USD = num("ONGI_GLOBAL_PER_PLUS_USD", 0.5);
 
 export const PLAN_LABEL: Record<PlanId, string> = { free: "무료", plus: "Plus" };
+
+/** Plus 월 구독료 (원, 부가세 포함) */
+export const PLUS_PRICE_KRW = 15000;
+export const PLUS_ORDER_NAME = "온기노트 Plus 1개월";
+/** 결제 실패 후 다시 시도하는 횟수 (하루 한 번). 그동안은 Plus 를 유지한다 */
+export const BILLING_MAX_RETRIES = 3;
+/** 결제 후 이 기간 안에 상담을 한 번도 하지 않았으면 전액 환불 */
+export const REFUND_DAYS = 7;

@@ -1,3 +1,4 @@
+import { deleteBillingKey } from "./billing";
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "./supabase/server";
@@ -34,6 +35,8 @@ export async function withdrawUser(userId: string, email: string | undefined): P
       .upsert({ email_hash: emailHash(email), withdrawn_at: new Date().toISOString() });
     if (error) throw error;
   }
+  // 자동 결제를 멈춘다: 토스에 등록된 카드(빌링키)를 지운다. 결제 내역은 계정 연결만 끊고 남는다.
+  await deleteBillingKey(userId);
   await removeUserImages(admin, userId);
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) throw error;
