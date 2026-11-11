@@ -1,4 +1,5 @@
 import type { Ctx } from "./db";
+import { hasConsented } from "./legal";
 import { createClient } from "./supabase/server";
 
 /**
@@ -10,10 +11,13 @@ import { createClient } from "./supabase/server";
  *
  * proxy.ts 도 확인하지만 그건 화면 이동용이라, 실제 권한 확인은 여기서 한다.
  */
-export async function requireUser(): Promise<{ ctx: Ctx } | { response: Response }> {
+export async function requireUser(opts: { allowUnconsented?: boolean } = {}): Promise<{ ctx: Ctx } | { response: Response }> {
   const sb = await createClient();
   const { data } = await sb.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) return { response: Response.json({ error: "로그인이 필요해요." }, { status: 401 }) };
+  if (!opts.allowUnconsented && !hasConsented(data?.claims)) {
+    return { response: Response.json({ error: "서비스 이용 동의가 필요해요.", needConsent: true }, { status: 403 }) };
+  }
   return { ctx: { sb, userId } };
 }

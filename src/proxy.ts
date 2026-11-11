@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { LEGAL_PATHS, hasConsented } from "@/lib/legal";
 
 /**
  * 1) 요청마다 로그인 토큰을 갱신해서 쿠키에 다시 써 준다 (서버 컴포넌트는 쿠키를 못 쓴다).
  * 2) 로그인하지 않았으면 화면은 /login 으로 보내고, API 는 401 을 준다.
+ * 3) 로그인했지만 약관·개인정보 동의 전이면 /welcome 으로 보내고, API 는 403 을 준다.
  *
  * 이건 화면 이동용 1차 확인일 뿐이다. 실제 권한 확인은 각 API 의 requireUser() 와 DB 의 RLS 가 한다.
  */
@@ -34,7 +36,8 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims);
 
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/auth/");
+  const isLegal = LEGAL_PATHS.includes(path);
+  const isPublic = path === "/login" || path.startsWith("/auth/") || isLegal;
   if (!signedIn && !isPublic) {
     if (path.startsWith("/api/")) {
       return Response.json({ error: "로그인이 필요해요." }, { status: 401 });
@@ -46,6 +49,24 @@ export async function proxy(request: NextRequest) {
   }
   if (signedIn && path === "/login") {
     return redirectWithCookies(new URL("/", request.url), response);
+  }
+
+  // 동의 전에는 동의 화면, 약관 문서, 동의 API 만 쓸 수 있다 (대화가 국외로 전송되기 전에 동의를 받는다)
+  if (signedIn) {
+    const consented = hasConsented(data?.claims);
+    const consentFree = isPublic || path === "/welcome" || path === "/api/me/consent";
+    if (!consented && !consentFree) {
+      if (path.startsWith("/api/")) {
+        return Response.json({ error: "서비스 이용 동의가 필요해요.", needConsent: true }, { status: 403 });
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = "/welcome";
+      url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
+      return redirectWithCookies(url, response);
+    }
+    if (consented && path === "/welcome") {
+      return redirectWithCookies(new URL("/", request.url), response);
+    }
   }
   return response;
 }

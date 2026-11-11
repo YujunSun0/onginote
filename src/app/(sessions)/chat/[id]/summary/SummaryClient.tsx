@@ -128,7 +128,7 @@ export default function SummaryClient({ id }: { id: string }) {
             <div className="flex items-center gap-3 bg-accent px-5 py-4 text-white">
               <CharacterAvatar id={character.id} tint="#FFFFFF" size={44} />
               <div>
-                <p className="text-xs opacity-90">{date}{person ? ` · ${person.name}` : ""}</p>
+                <p className="text-xs opacity-90">{date}{person ? ` · ${person.name}` : ""} · AI가 정리한 내용</p>
                 <p className="font-display text-xl leading-snug">{summary.title}</p>
               </div>
             </div>

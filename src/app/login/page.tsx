@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CharacterFace } from "@/components/CharacterFace";
 import { LoginButtons } from "./LoginButtons";
 import { REJOIN_BLOCK_DAYS } from "@/lib/withdrawal";
@@ -38,7 +39,14 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
         <p className="pt-6 text-center text-xs leading-relaxed text-muted">
           상담 내용은 로그인한 본인만 볼 수 있어요.
+          <br />
+          캐릭터는 AI예요. 답변은 AI가 만들어요.
         </p>
+        <nav className="flex justify-center gap-3 pt-4 text-xs text-muted">
+          <Link href="/terms" className="underline underline-offset-2">이용약관</Link>
+          <Link href="/privacy" className="font-bold underline underline-offset-2">개인정보 처리방침</Link>
+          <Link href="/ai-notice" className="underline underline-offset-2">AI 답변 안내</Link>
+        </nav>
       </div>
     </main>
   );

@@ -302,14 +302,20 @@ export default function ChatClient({ id }: { id: string }) {
           </div>
         )}
         {m.role === "assistant" ? (
-          splitBubbles(m.text).map((part, j) => (
-            <div key={j} className="flex max-w-[85%] items-start gap-2">
-              {showAvatar && j === 0 ? <CharacterAvatar id={character.id} tint={character.tint} size={32} /> : <span className="w-8 shrink-0" />}
-              <div className="rounded-[4px_18px_18px_18px] border border-line bg-white px-3.5 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap">
-                <RichText text={part} />
+          <>
+            {splitBubbles(m.text).map((part, j) => (
+              <div key={j} className="flex max-w-[85%] items-start gap-2">
+                {showAvatar && j === 0 ? <CharacterAvatar id={character.id} tint={character.tint} size={32} /> : <span className="w-8 shrink-0" />}
+                <div className="rounded-[4px_18px_18px_18px] border border-line bg-white px-3.5 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap">
+                  <RichText text={part} />
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+            {/* AI 기본법: 생성형 AI 결과물임을 표시한다. 이어지는 캐릭터 메시지가 있으면 마지막에만 */}
+            {m.text && messages[i + 1]?.role !== "assistant" && (
+              <p className="-mt-1.5 pl-10 text-[10px] text-muted">AI가 만든 답변</p>
+            )}
+          </>
         ) : (
           <div className="flex max-w-[78%] flex-col items-end gap-1.5 self-end">
             <SentImages images={messageImages(m)} />
@@ -409,6 +415,10 @@ export default function ChatClient({ id }: { id: string }) {
           className="relative h-full overflow-y-auto overscroll-contain [overflow-anchor:none]"
         >
           <div ref={contentRef} className="flex flex-col gap-2.5 px-4 pb-4 lg:mx-auto lg:max-w-3xl lg:px-8">
+            <p className="mx-auto mt-3 max-w-xs rounded-2xl bg-white/70 px-3 py-1.5 text-center text-[11px] leading-relaxed text-muted">
+              {josa(character.name, "은", "는")} AI 캐릭터예요. 답변은 AI가 만들고, 전문 상담을 대신하지 않아요.{" "}
+              <Link href="/ai-notice" className="underline underline-offset-2">자세히</Link>
+            </p>
             {messages.slice(0, splitAt).map((m, i) => renderMessage(m, i))}
             {anchor === null ? (
               tail

@@ -46,6 +46,13 @@
 - 상담 탭에서 지금까지 나눈 상담을 모두 볼 수 있습니다. 정리 상태와 사람별로 걸러 볼 수 있습니다.
 - 홈에는 정리 카드의 할 것을 모은 체크리스트와 다가오는 생일이 나옵니다.
 
+### 약관과 AI 안내
+
+- 이용약관(`/terms`), 개인정보 처리방침(`/privacy`), AI 답변 안내(`/ai-notice`)는 로그인 없이 열립니다. 로그인 화면과 마이페이지에서 링크합니다. 운영자 정보와 동의 버전은 `src/lib/legal.ts`에 있습니다.
+- 처음 로그인하면 동의 화면(`/welcome`)에서 만 14세 이상, 이용약관, 개인정보 수집·이용, 민감정보 처리, 국외 이전(Anthropic, 미국)에 모두 동의해야 시작할 수 있습니다. 동의 전에는 모든 API가 403을 돌려줘서 대화가 국외로 전송되지 않습니다.
+- 동의 여부는 로그인 토큰의 `app_metadata.consent_version`(서버만 바꿀 수 있음)으로 확인해서 요청마다 DB를 조회하지 않습니다. 약관을 바꿔 다시 동의를 받아야 하면 `CONSENT_VERSION`을 올립니다.
+- AI 기본법의 투명성 의무에 맞춰 채팅 말풍선에 "AI가 만든 답변", 정리 카드와 PDF에 "AI가 정리한 내용"을 표시하고, 채팅 맨 위에 캐릭터가 AI라는 안내를 둡니다.
+
 ### 마이페이지
 
 - 닉네임(1~20자)을 바꿀 수 있습니다. 처음에는 카카오·구글 이름이 들어가고, 홈 인사("○○, 왔구나!")에 쓰입니다.
@@ -84,7 +91,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
-3. SQL Editor에 `supabase/migrations/0001_init.sql`, `0002_withdrawal.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록 테이블이 만들어집니다.
+3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록이 만들어집니다.
 4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
 5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
    - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.
@@ -124,6 +131,8 @@ src/
 │  ├─ people/                   인물 목록, 등록, 프로필 (PC에서 사람 목록 사이드바)
 │  ├─ me/                       마이페이지 (닉네임, 로그아웃, 탈퇴), me/print 기록 PDF용 인쇄 화면
 │  ├─ login/                    로그인 (카카오, 구글)
+│  ├─ welcome/                  첫 로그인 동의 화면
+│  ├─ privacy/ terms/ ai-notice/ 개인정보 처리방침, 이용약관, AI 답변 안내 (공개)
 │  ├─ auth/                     로그인 콜백, 로그아웃
 │  └─ api/
 │     ├─ chat/                  모드 판단과 답변 스트리밍 (NDJSON)
@@ -181,5 +190,5 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 - [ ] 선톡 웹 푸시 알림
 - [x] PC용 2단 레이아웃
 - [x] 로그인과 실제 데이터베이스, 사용자별 사용량 제한
-- [ ] 개인정보처리방침, AI 생성물 고지
+- [x] 개인정보처리방침, AI 생성물 고지
 - [ ] PWA로 먼저 내고 앱으로 출시

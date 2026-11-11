@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
@@ -97,10 +98,16 @@ export default function MyPage() {
 
           <Card title="약관 및 정책">
             <ul className="flex flex-col text-sm text-ink-soft">
-              {["개인정보 처리방침", "이용약관", "AI 답변 안내"].map((t) => (
-                <li key={t} className="flex justify-between border-b border-line py-2.5 last:border-0">
-                  {t}
-                  <span className="text-xs text-muted">준비 중</span>
+              {[
+                ["개인정보 처리방침", "/privacy"],
+                ["이용약관", "/terms"],
+                ["AI 답변 안내", "/ai-notice"],
+              ].map(([t, href]) => (
+                <li key={href} className="border-b border-line last:border-0">
+                  <Link href={href} className="flex justify-between py-2.5 hover:text-ink">
+                    <span className={href === "/privacy" ? "font-bold" : undefined}>{t}</span>
+                    <span aria-hidden="true" className="text-muted">›</span>
+                  </Link>
                 </li>
               ))}
             </ul>

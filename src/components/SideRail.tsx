@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LEGAL_PATHS } from "@/lib/legal";
 import { NAV_ITEMS, isNavActive } from "./BottomNav";
+
+/** 메뉴 없이 보여주는 화면: 로그인, 동의, 인쇄용 기록, 약관 문서 */
+const BARE_PATHS = ["/login", "/welcome", "/me/print", ...LEGAL_PATHS];
 
 /** PC(lg 이상) 왼쪽 세로 메뉴. 아래쪽에 오늘 사용량을 보여준다. */
 export function SideRail() {
@@ -12,7 +16,7 @@ export function SideRail() {
 
   // 화면을 옮길 때마다, 그리고 답변이 끝날 때마다 사용량을 다시 읽는다
   useEffect(() => {
-    if (path === "/login" || path === "/me/print") return;
+    if (BARE_PATHS.includes(path)) return;
     const load = () =>
       fetch("/api/usage")
         .then((r) => r.json())
@@ -23,8 +27,7 @@ export function SideRail() {
     return () => window.removeEventListener("onginote:sessions", load);
   }, [path]);
 
-  // 로그인 화면과 인쇄용 기록 화면에는 메뉴를 띄우지 않는다
-  if (path === "/login" || path === "/me/print") return null;
+  if (BARE_PATHS.includes(path)) return null;
 
   const r = 13;
   const c = 2 * Math.PI * r;

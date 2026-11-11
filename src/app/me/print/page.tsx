@@ -114,7 +114,7 @@ async function PrintDocument() {
 
               {s.summary && (
                 <div className="mt-3 rounded-2xl bg-cream p-4 print:break-inside-avoid">
-                  <p className="text-xs font-bold text-accent-text">정리 카드</p>
+                  <p className="text-xs font-bold text-accent-text">정리 카드 <span className="font-normal text-muted">· AI가 정리한 내용</span></p>
                   <Field label="상황">{s.summary.situation}</Field>
                   <Field label="해석">{s.summary.interpretation}</Field>
                   {s.summary.todo.length > 0 && (
@@ -145,7 +145,7 @@ async function PrintDocument() {
                   return (
                     <div key={i} className={`flex flex-col print:break-inside-avoid ${mine ? "items-end" : "items-start"}`}>
                       <span className="px-1 text-[10px] text-muted">
-                        {mine ? nickname : ch.name} · {kDate(m.at, true)}
+                        {mine ? nickname : `${ch.name} (AI)`} · {kDate(m.at, true)}
                       </span>
                       {imgs.length > 0 && (
                         <div className="flex flex-wrap justify-end gap-1.5 py-1">
