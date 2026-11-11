@@ -1,3 +1,4 @@
+import { GLOBAL_BASE_DAILY_USD, GLOBAL_PER_PLUS_USD, PLANS, type PlanId, type PlanLimits } from "./plans";
 import { createAdminClient } from "./supabase/server";
 import type { UsageKind } from "./types";
 
@@ -5,19 +6,11 @@ import type { UsageKind } from "./types";
  * API 사용량 기록과 하루 사용 한도.
  * 내부에서는 달러로 계산하고, 화면에는 본인 하루 한도 대비 퍼센트만 보여준다.
  *
- * 한도는 두 겹이다.
- * - 사람마다 하루 한도: 한 사람이 많이 써도 다른 사람에게 영향이 없게
- * - 서비스 전체 하루 한도: 사용자가 몰려도 요금이 폭주하지 않게
+ * 한도는 세 겹이다. 숫자는 plans.ts 에 있다.
+ * - 사람마다 하루 한도 (요금제별): 한 사람이 많이 써도 다른 사람에게 영향이 없게
+ * - Plus 구독 기간 한도: 넘으면 그 기간 남은 날은 무료 수준으로 (구독료보다 많이 쓰지 않게)
+ * - 서비스 전체 하루 한도 (Plus 인원만큼 늘어남): 사용자가 몰려도 요금이 폭주하지 않게
  */
-
-function budget(name: string, fallback: number): number {
-  const v = Number(process.env[name]);
-  return v > 0 ? v : fallback;
-}
-/** 1인 하루 한도 (달러) */
-export const USER_DAILY_BUDGET_USD = budget("ONGI_USER_DAILY_BUDGET_USD", 0.1);
-/** 서비스 전체 하루 한도 (달러) */
-export const GLOBAL_DAILY_BUDGET_USD = budget("ONGI_GLOBAL_DAILY_BUDGET_USD", 5);
 
 /** 100만 토큰당 가격 (달러). 캐시 쓰기는 입력의 1.25배(5분), 캐시 읽기는 0.1배. */
 const PRICES: { match: string; input: number; output: number }[] = [
@@ -83,37 +76,83 @@ export async function recordUsage(
   if (error) console.error("usage record failed", error);
 }
 
+/** 화면에 내보내는 사용 현황. 금액과 모델 이름은 내보내지 않는다. */
 export interface UsageStatus {
+  /** 가입한 요금제 */
+  plan: PlanId;
+  /** Plus 이용 기간 끝 (ISO). 무료면 null */
+  plusUntil: string | null;
+  /** Plus 해지 예약 등 상태. 무료면 null */
+  plusStatus: SubStatus | null;
+  /** Plus 구독 기간 한도에 닿아 무료 수준으로 쓰는 중 */
+  periodCapped: boolean;
   /** 본인 오늘 한도 중 쓴 비율 (0~100, 반올림) */
   percent: number;
   exceeded: boolean;
   /** 서비스 전체 한도에 닿아서 막힌 경우 */
   serviceBusy?: boolean;
+  /** 오늘 남은 웹 검색 횟수 */
+  searchesLeft: number;
+  /** 상담 하나에서 보낼 수 있는 내 메시지 수 */
+  sessionMessages: number;
 }
 
-async function spent(day: string, userId: string | null): Promise<number> {
-  const { data, error } = await createAdminClient().rpc("usage_spent", { p_day: day, p_user: userId });
-  if (error) {
-    console.error("usage sum failed", error);
-    return 0;
-  }
-  return Number(data) || 0;
+/** 서버 안에서만 쓰는 것까지 포함 */
+export interface Allowance extends UsageStatus {
+  limits: PlanLimits;
 }
 
-export async function getUsageStatus(userId: string): Promise<UsageStatus> {
-  const today = koreaDay();
-  const [mine, all] = await Promise.all([spent(today, userId), spent(today, null)]);
-  const ratio = mine / USER_DAILY_BUDGET_USD;
-  const serviceBusy = all >= GLOBAL_DAILY_BUDGET_USD;
+type SubStatus = "active" | "canceled" | "past_due";
+interface Snapshot {
+  sub: { status: SubStatus; current_period_start: string; current_period_end: string } | null;
+  mine_day: number;
+  searches_day: number;
+  mine_period: number;
+  all_day: number;
+  plus_members: number;
+}
+
+export async function getAllowance(userId: string): Promise<Allowance> {
+  const { data, error } = await createAdminClient().rpc("usage_snapshot", { p_user: userId, p_day: koreaDay() });
+  if (error) console.error("usage snapshot failed", error);
+  const snap = (data ?? {}) as Partial<Snapshot>;
+  const sub = snap.sub ?? null;
+  const isPlus = !!sub && new Date(sub.current_period_end).getTime() > Date.now();
+
+  const plus = PLANS.plus;
+  const periodCapped = isPlus && plus.periodUsd !== null && Number(snap.mine_period ?? 0) >= plus.periodUsd;
+  // 기간 한도에 닿은 Plus 는 무료 수준으로 계속 쓴다 (상담 길이는 Plus 그대로)
+  const limits: PlanLimits = !isPlus ? PLANS.free : periodCapped ? { ...PLANS.free, sessionMessages: plus.sessionMessages } : plus;
+
+  const ratio = Number(snap.mine_day ?? 0) / limits.dailyUsd;
+  const globalBudget = GLOBAL_BASE_DAILY_USD + Number(snap.plus_members ?? 0) * GLOBAL_PER_PLUS_USD;
+  const serviceBusy = Number(snap.all_day ?? 0) >= globalBudget;
   return {
+    plan: isPlus ? "plus" : "free",
+    plusUntil: isPlus ? sub.current_period_end : null,
+    plusStatus: isPlus ? sub.status : null,
+    periodCapped,
     percent: Math.min(100, Math.round(ratio * 100)),
     exceeded: ratio >= 1 || serviceBusy,
     ...(serviceBusy ? { serviceBusy } : {}),
+    searchesLeft: Math.max(0, limits.dailySearches - Number(snap.searches_day ?? 0)),
+    sessionMessages: limits.sessionMessages,
+    limits,
   };
 }
 
+/** 화면용으로 내보낼 때 */
+export async function getUsageStatus(userId: string): Promise<UsageStatus> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { limits, ...status } = await getAllowance(userId);
+  return status;
+}
+
 export function budgetExceededMessage(status: UsageStatus): string {
-  return status.serviceBusy && status.percent < 100
-    ? "지금 이용하는 분이 많아서 오늘은 대화를 더 할 수 없어요. 내일 다시 이야기해요."
+  if (status.serviceBusy && status.percent < 100) {
+    return "지금 이용하는 분이 많아서 오늘은 대화를 더 할 수 없어요. 내일 다시 이야기해요.";
+  }
+  return status.plan === "free"
+    ? "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요. Plus로 바꾸면 더 이야기할 수 있어요."
     : "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요.";
 }

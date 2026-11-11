@@ -161,6 +161,7 @@ interface MessageRow {
   text: string;
   images: ChatImage[] | null;
   mode: ChatMessage["mode"] | null;
+  sources: ChatMessage["sources"] | null;
   created_at: string;
 }
 
@@ -173,7 +174,7 @@ export async function getSession(ctx: Ctx, id: string, opts: { imageUrls?: boole
   if (!meta) return null;
   const { data, error } = await ctx.sb
     .from("messages")
-    .select("role,text,images,mode,created_at")
+    .select("role,text,images,mode,sources,created_at")
     .eq("session_id", id)
     .order("id");
   if (error) fail("메시지 조회", error);
@@ -182,6 +183,7 @@ export async function getSession(ctx: Ctx, id: string, opts: { imageUrls?: boole
     text: m.text,
     images: m.images?.length ? m.images : undefined,
     mode: m.mode ?? undefined,
+    sources: m.sources ?? undefined,
     at: m.created_at,
   }));
   if (opts.imageUrls) await attachImageUrls(ctx, messages);
@@ -227,6 +229,7 @@ export async function appendMessage(ctx: Ctx, meta: SessionMeta, msg: ChatMessag
     text: msg.text,
     images,
     mode: msg.mode ?? null,
+    sources: msg.sources ?? null,
     created_at: msg.at,
   });
   if (error) fail("메시지 저장", error);

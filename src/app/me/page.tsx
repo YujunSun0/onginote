@@ -13,6 +13,7 @@ interface Me {
   joinedAt: string | null;
   counts: { persons: number; sessions: number; summaries: number };
   usagePercent: number;
+  plan: { id: "free" | "plus"; until: string | null; status: "active" | "canceled" | "past_due" | null; periodCapped: boolean };
 }
 
 const PROVIDER_LABEL: Record<string, string> = { kakao: "카카오", google: "구글" };
@@ -22,6 +23,33 @@ function dateLabel(iso: string | null) {
   if (!iso) return "";
   const d = new Date(new Date(iso).getTime() + 9 * 3600e3);
   return `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+}
+
+function PlanCard({ plan }: { plan: Me["plan"] }) {
+  const plus = plan.id === "plus";
+  const note = !plus
+    ? "상담 하나에 메시지 40개, 하루 웹 검색 3번까지 쓸 수 있어요."
+    : plan.status === "canceled"
+      ? `해지했어요. ${dateLabel(plan.until)}까지 Plus로 쓸 수 있어요.`
+      : plan.status === "past_due"
+        ? "결제가 안 돼서 다시 시도하고 있어요. 결제 수단을 확인해 주세요."
+        : `다음 결제일은 ${dateLabel(plan.until)}이에요.`;
+  return (
+    <section className="rounded-3xl border border-line bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg">내 요금제</h2>
+        <span className={`rounded-full px-3 py-1 text-sm font-bold ${plus ? "bg-accent text-white" : "bg-cream text-ink-soft"}`}>
+          {plus ? "Plus" : "무료"}
+        </span>
+      </div>
+      <p className="pt-2 text-sm text-ink-soft">{note}</p>
+      {plus && plan.periodCapped && (
+        <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
+          이번 달 Plus 사용량을 다 써서, 다음 결제일까지는 무료와 같은 수준으로 이어서 쓸 수 있어요.
+        </p>
+      )}
+    </section>
+  );
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -54,6 +82,8 @@ export default function MyPage() {
       {me && (
         <div className="mt-5 flex flex-col gap-4">
           <ProfileCard me={me} onSaved={(nickname) => setMe({ ...me, nickname })} />
+
+          <PlanCard plan={me.plan} />
 
           <Card title="오늘 사용량">
             <div className="flex items-center gap-3">

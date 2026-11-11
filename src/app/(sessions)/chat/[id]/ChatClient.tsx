@@ -13,11 +13,11 @@ import { listenOnce, speak, speechRecognitionSupported, stopSpeaking } from "@/l
 import {
   MAX_IMAGES,
   MAX_INPUT_CHARS,
-  MAX_USER_MESSAGES,
-  WARN_USER_MESSAGES,
+  WARN_REMAINING_MESSAGES,
   messageImages,
   type ChatImage,
   type ChatMessage,
+  type MessageSources,
   type Mode,
   type Person,
   type Session,
@@ -69,6 +69,8 @@ export default function ChatClient({ id }: { id: string }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false); // 답변이 끝날 때까지 true
   const [usage, setUsage] = useState<number | null>(null); // 오늘 사용량 % (하루 한도 대비)
+  // 요금제에 따라 다른 것: 상담 하나의 길이, 한도에 닿았을 때 안내
+  const [plan, setPlan] = useState<{ id: "free" | "plus"; sessionMessages: number } | null>(null);
   // PC 오른쪽 인물 패널 (넓은 화면에서만 보임). 패널은 상담을 불러온 뒤에만 그려서 서버 화면과 어긋나지 않는다.
   const [panelOpen, setPanelOpen] = useState(() => {
     try {
@@ -114,7 +116,10 @@ export default function ChatClient({ id }: { id: string }) {
       });
     fetch("/api/usage")
       .then((r) => r.json())
-      .then((u: { percent: number }) => setUsage(u.percent))
+      .then((u: { percent: number; plan: "free" | "plus"; sessionMessages: number }) => {
+        setUsage(u.percent);
+        setPlan({ id: u.plan, sessionMessages: u.sessionMessages });
+      })
       .catch(() => {});
     return () => stopSpeaking();
   }, [id]);
@@ -167,7 +172,8 @@ export default function ChatClient({ id }: { id: string }) {
   const locked = summaryState === "done" && !unlocked;
   // 사용 제한: 상담 하나의 길이와 하루 사용량
   const userCount = messages.filter((m) => m.role === "user").length;
-  const remaining = MAX_USER_MESSAGES - userCount;
+  const remaining = plan ? plan.sessionMessages - userCount : Infinity;
+  const fewLeft = remaining <= WARN_REMAINING_MESSAGES;
   const sessionFull = remaining <= 0;
   const dailyOut = usage !== null && usage >= 100;
   const blocked = sessionFull || dailyOut;
@@ -231,6 +237,8 @@ export default function ChatClient({ id }: { id: string }) {
             } else {
               setMessages((m) => [...m.slice(0, -1), { ...m[m.length - 1], text: reply }]);
             }
+          } else if (ev.type === "sources") {
+            setMessages((m) => (m[m.length - 1]?.role === "assistant" ? [...m.slice(0, -1), { ...m[m.length - 1], sources: ev.sources }] : m));
           } else if (ev.type === "done") {
             if (typeof ev.usage === "number") setUsage(ev.usage);
           } else if (ev.type === "error") {
@@ -312,6 +320,7 @@ export default function ChatClient({ id }: { id: string }) {
                 </div>
               </div>
             ))}
+            {m.sources && <Sources sources={m.sources} />}
           </>
         ) : (
           <div className="flex max-w-[78%] flex-col items-end gap-1.5 self-end">
@@ -468,19 +477,21 @@ export default function ChatClient({ id }: { id: string }) {
           <UsageMeter percent={100} />
           <p className="flex-1 text-sm">
             오늘 대화량을 다 썼어요
-            <span className="block text-xs text-muted">내일 다시 이야기해요. 정리하기는 지금도 할 수 있어요</span>
+            <span className="block text-xs text-muted">
+              내일 다시 이야기해요. 정리하기는 지금도 할 수 있어요{plan?.id === "free" ? " · Plus로 바꾸면 더 이야기할 수 있어요" : ""}
+            </span>
           </p>
         </div>
       ) : (
       <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5 lg:rounded-none lg:px-8 lg:*:mx-auto lg:*:max-w-3xl">
-        {(remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES || (usage !== null && usage >= 80)) && (
+        {(fewLeft || (usage !== null && usage >= 80)) && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
             {usage !== null && usage >= 80 && <UsageMeter percent={usage} />}
             <span className="flex-1">
-              {remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES
+              {fewLeft
                 ? `이 상담에서 ${remaining}번 더 이야기할 수 있어요`
                 : `오늘 대화량의 ${usage}%를 썼어요`}
-              {remaining <= MAX_USER_MESSAGES - WARN_USER_MESSAGES && usage !== null && usage >= 80 ? ` · 오늘 ${usage}% 사용` : ""}
+              {fewLeft && usage !== null && usage >= 80 ? ` · 오늘 ${usage}% 사용` : ""}
             </span>
           </div>
         )}
@@ -624,6 +635,56 @@ function SentImages({ images }: { images: ChatImage[] }) {
         />
       ))}
     </div>
+  );
+}
+
+/** 답변 아래: 무엇을 검색했고 어떤 글을 참고했는지. 누르면 펼쳐지고, 글은 새 탭으로 연다 */
+function Sources({ sources }: { sources: MessageSources }) {
+  const { queries, links } = sources;
+  if (queries.length === 0 && links.length === 0) return null;
+  const host = (url: string) => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return url;
+    }
+  };
+  const summary = [
+    queries.length > 0 ? `‘${queries[0]}’${queries.length > 1 ? ` 외 ${queries.length - 1}개` : ""} 검색함` : "웹 검색함",
+    links.length > 0 ? `참고한 글 ${links.length}개` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <details className="group ml-10 max-w-[calc(85%-2.5rem)] text-xs text-muted">
+      <summary className="flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-full py-1 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <span aria-hidden>🔍</span>
+        <span className="truncate">{summary}</span>
+        <span aria-hidden className="shrink-0 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="mt-1 space-y-2 rounded-2xl border border-line bg-white p-3">
+        {queries.length > 1 && (
+          <p className="leading-relaxed">
+            검색어: {queries.map((q) => `‘${q}’`).join(", ")}
+          </p>
+        )}
+        {links.length > 0 ? (
+          <ul className="space-y-1.5">
+            {links.map((l) => (
+              <li key={l.url}>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className="block rounded-lg py-0.5 hover:bg-peach/50">
+                  <span className="line-clamp-2 text-sm text-ink underline decoration-line-strong underline-offset-2">{l.title}</span>
+                  <span className="text-[11px] text-muted">{host(l.url)} ↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>참고할 만한 글을 찾지 못했어요.</p>
+        )}
+        <p className="text-[11px] leading-relaxed text-muted">검색 결과를 바탕으로 AI가 정리한 답변이라 원문과 다를 수 있어요.</p>
+      </div>
+    </details>
   );
 }
 

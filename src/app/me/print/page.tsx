@@ -170,6 +170,17 @@ async function PrintDocument() {
                           <Bold text={t} />
                         </p>
                       ))}
+                      {m.sources && m.sources.links.length > 0 && (
+                        <div className="mt-1 max-w-[85%] px-1 text-[10px] leading-relaxed text-muted">
+                          참고한 글
+                          {m.sources.queries.length > 0 && ` (검색: ${m.sources.queries.map((q) => `‘${q}’`).join(", ")})`}
+                          {m.sources.links.map((l) => (
+                            <a key={l.url} href={l.url} className="block truncate underline">
+                              {l.title} · {hostOf(l.url)}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -187,6 +198,14 @@ async function PrintDocument() {
 }
 
 /** 답변 속 **굵게** 표시를 실제 굵은 글씨로 바꾼다 */
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 function Bold({ text }: { text: string }) {
   return text.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
     part.startsWith("**") && part.endsWith("**") && part.length > 4 ? <b key={i}>{part.slice(2, -2)}</b> : part,

@@ -12,7 +12,7 @@ export async function GET() {
     sb.from("profiles").select("display_name, created_at").eq("id", userId).maybeSingle(),
     sb.from("persons").select("*").eq("user_id", userId).order("created_at"),
     sb.from("sessions").select("*").eq("user_id", userId).order("created_at"),
-    sb.from("messages").select("session_id, role, text, images, mode, created_at").eq("user_id", userId).order("id"),
+    sb.from("messages").select("session_id, role, text, images, mode, sources, created_at").eq("user_id", userId).order("id"),
     sb.from("usage").select("at, kind, model, cost").eq("user_id", userId).order("at"),
   ]);
   const err = [profile, persons, sessions, messages, usage].find((r) => r.error)?.error;

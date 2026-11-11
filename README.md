@@ -91,7 +91,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
-3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록이 만들어집니다.
+3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제가 만들어집니다.
 4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
 5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
    - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.
@@ -110,11 +110,16 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 | `NEXT_PUBLIC_SUPABASE_URL` | (필수) | Supabase 프로젝트 주소 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | (필수) | Supabase 공개 키. 로그인한 사용자 권한으로만 동작합니다 |
 | `SUPABASE_SECRET_KEY` | (필수) | Supabase 관리자 키. 사용량 기록과 합계에만 서버에서 씁니다 |
-| `ONGI_CHAT_MODEL` | `claude-sonnet-5-5` | 캐릭터 답변에 쓰는 모델. `claude-haiku-5-5`로 바꾸면 더 저렴하고, `claude-opus-5-5`로 바꾸면 품질이 올라갑니다 |
+| `ONGI_FREE_CHAT_MODEL` | `claude-haiku-5-5` | 무료 요금제의 캐릭터 답변 모델 |
+| `ONGI_PLUS_CHAT_MODEL` | `claude-sonnet-5-5` | Plus 요금제의 캐릭터 답변 모델 |
 | `ONGI_ROUTER_MODEL` | `claude-haiku-5-5` | 모드 판단에 쓰는 모델 |
 | `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드와 프로필 물어보기에 쓰는 모델 |
-| `ONGI_USER_DAILY_BUDGET_USD` | `0.1` | 1인 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
-| `ONGI_GLOBAL_DAILY_BUDGET_USD` | `5` | 서비스 전체 하루 사용 한도(달러) |
+| `ONGI_FREE_DAILY_USD` / `ONGI_PLUS_DAILY_USD` | `0.1` / `0.5` | 1인 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
+| `ONGI_FREE_DAILY_SEARCHES` / `ONGI_PLUS_DAILY_SEARCHES` | `3` / `20` | 하루 웹 검색 횟수 |
+| `ONGI_FREE_SESSION_MESSAGES` / `ONGI_PLUS_SESSION_MESSAGES` | `40` / `80` | 상담 하나에서 보낼 수 있는 내 메시지 수 |
+| `ONGI_PLUS_PERIOD_USD` | `8` | Plus 구독 기간(한 달) 사용 한도(달러). 넘으면 남은 기간은 무료 수준으로 씁니다 |
+| `ONGI_GLOBAL_DAILY_BUDGET_USD` | `5` | 서비스 전체 하루 사용 한도의 기본값(달러) |
+| `ONGI_GLOBAL_PER_PLUS_USD` | `0.5` | Plus 회원 한 명당 서비스 전체 한도에 더하는 금액(달러) |
 | `ONGI_EMAIL_HASH_KEY` | (필수) | 탈퇴한 이메일을 해시할 때 쓰는 서버 비밀키. 바꾸면 기존 재가입 제한이 풀립니다 |
 | `ONGI_REJOIN_BLOCK_DAYS` | `30` | 탈퇴 후 같은 이메일로 다시 가입할 수 없는 기간(일) |
 
@@ -177,8 +182,19 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 
 - **캐싱**: 시스템 프롬프트와 대화 기록 앞부분을 캐시합니다. 다음 메시지에서는 이미 보낸 부분을 1/10 가격으로 읽습니다. 캐시가 깨지지 않도록 요청 전체의 effort는 고정하고, 해석과 플랜처럼 깊게 생각할 턴만 모드 지시 메시지에서 effort를 올립니다. 보내는 대화 범위도 한 칸씩이 아니라 10개 단위로 밉니다.
 - **사용량 기록**: API 응답마다 사용자, 토큰 수, 금액을 `usage` 테이블에 남깁니다.
-- **하루 한도 (두 겹)**: 내가 오늘 쓴 금액이 `ONGI_USER_DAILY_BUDGET_USD`에 닿거나, 서비스 전체가 오늘 쓴 금액이 `ONGI_GLOBAL_DAILY_BUDGET_USD`에 닿으면 대화와 물어보기를 막습니다. 날짜는 서버 위치와 상관없이 한국 시간 자정에 바뀝니다. 정리하기는 그날 상담을 마무리할 수 있도록 계속 쓸 수 있습니다. 사용자에게는 금액 대신 한도 대비 퍼센트를 보여줍니다. 홈 화면에 항상 표시하고, 채팅에서는 80%부터 알립니다.
-- **상담 길이**: 상담 하나에서 내 메시지는 40개까지 보낼 수 있고, 30개부터 남은 횟수를 알려줍니다. 대화가 길수록 메시지마다 다시 보내는 양이 늘어나기 때문입니다. 다 차면 정리하고 새 상담으로 이어가도록 안내합니다.
+- **요금제**: 숫자는 모두 `src/lib/plans.ts`에 있습니다. `subscriptions` 테이블에 기간이 남은 행이 있으면 Plus, 없으면 무료입니다.
+
+  | | 무료 | Plus |
+  |---|---|---|
+  | 캐릭터 답변 모델 | Haiku | Sonnet |
+  | 하루 한도 | $0.1 | $0.5 |
+  | 하루 웹 검색 | 3회 | 20회 |
+  | 상담 하나당 내 메시지 | 40개 | 80개 |
+  | 구독 기간 한도 | - | $8 (넘으면 남은 기간은 무료 수준) |
+
+  결제를 붙이기 전에는 `node --env-file=.env.local scripts/set-plan.mjs <이메일> plus|free|expire`로 요금제를 바꿔 테스트합니다.
+- **하루 한도**: 내가 오늘 쓴 금액이 요금제 하루 한도에 닿거나, 서비스 전체가 오늘 쓴 금액이 전체 한도(`ONGI_GLOBAL_DAILY_BUDGET_USD` + Plus 인원 × `ONGI_GLOBAL_PER_PLUS_USD`)에 닿으면 대화와 물어보기를 막습니다. 검색 횟수를 다 쓴 날은 검색 없이 답하고, 캐릭터가 그 사실을 한마디로 밝힙니다. 날짜는 서버 위치와 상관없이 한국 시간 자정에 바뀝니다. 정리하기는 그날 상담을 마무리할 수 있도록 계속 쓸 수 있습니다. 사용자에게는 금액 대신 한도 대비 퍼센트를 보여줍니다. 홈 화면에 항상 표시하고, 채팅에서는 80%부터 알립니다.
+- **상담 길이**: 상담 하나에서 내 메시지는 요금제에 따라 40개(Plus 80개)까지 보낼 수 있고, 10개 남았을 때부터 남은 횟수를 알려줍니다. 대화가 길수록 메시지마다 다시 보내는 양이 늘어나기 때문입니다. 다 차면 정리하고 새 상담으로 이어가도록 안내합니다.
 - **메시지 길이**: 한 번에 2,000자, 사진 5장까지 보낼 수 있습니다.
 
 

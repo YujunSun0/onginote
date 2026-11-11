@@ -28,6 +28,12 @@ export interface ChatImage {
   url?: string;
 }
 
+/** 웹 검색으로 참고한 것. 답변 아래에 출처로 보여준다 */
+export interface MessageSources {
+  queries: string[];
+  links: { title: string; url: string }[];
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
@@ -35,6 +41,7 @@ export interface ChatMessage {
   /** @deprecated 예전 데이터(사진 1장)용. 읽을 때는 messageImages()를 쓴다. */
   image?: ChatImage;
   mode?: Mode; // assistant 메시지가 어떤 모드에서 나왔는지
+  sources?: MessageSources;
   at: string;
 }
 
@@ -50,10 +57,8 @@ export function summaryState(summary: Summary | null | undefined, messageCount: 
 export const MAX_IMAGES = 5;
 /** 메시지 하나의 최대 글자 수 */
 export const MAX_INPUT_CHARS = 2000;
-/** 상담 하나에서 보낼 수 있는 내 메시지 수. 길어질수록 메시지마다 비용이 커진다. */
-export const MAX_USER_MESSAGES = 40;
-/** 이 수부터 남은 횟수를 알려준다 */
-export const WARN_USER_MESSAGES = 30;
+/** 상담 하나의 남은 메시지가 이만큼 이하가 되면 남은 횟수를 알려준다. 상담 길이는 요금제마다 다르다 (plans.ts). */
+export const WARN_REMAINING_MESSAGES = 10;
 
 export function messageImages(m: ChatMessage): ChatImage[] {
   return m.images ?? (m.image ? [m.image] : []);

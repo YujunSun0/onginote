@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CHARACTERS } from "@/lib/characters";
-import { CHAT_MODEL, MissingKeyError, ROUTER_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
+import { MissingKeyError, ROUTER_MODEL, apiErrorMessage, getClient } from "@/lib/claude";
 import { requireUser } from "@/lib/auth";
 import { type Ctx, appendMessage, getPerson, getSession, loadImageData, updateSession } from "@/lib/db";
 import {
@@ -14,14 +14,14 @@ import {
 import {
   MAX_IMAGES,
   MAX_INPUT_CHARS,
-  MAX_USER_MESSAGES,
   messageImages,
   type ChatImage,
   type ChatMessage,
+  type MessageSources,
   type Mode,
   type Session,
 } from "@/lib/types";
-import { budgetExceededMessage, getUsageStatus, recordUsage } from "@/lib/usage";
+import { budgetExceededMessage, getAllowance, getUsageStatus, recordUsage } from "@/lib/usage";
 
 const RouterSchema = z.object({
   mode: z.enum(["chat", "listen", "explore", "interpret", "react", "offer_plan", "plan"]),
@@ -65,11 +65,12 @@ export async function POST(request: Request) {
 
   const session = await getSession(ctx, body.sessionId);
   if (!session) return Response.json({ error: "상담을 찾을 수 없어요." }, { status: 404 });
-  const usage = await getUsageStatus(ctx.userId);
+  const usage = await getAllowance(ctx.userId);
+  const chatModel = usage.limits.chatModel;
   if (usage.exceeded) {
     return Response.json({ error: budgetExceededMessage(usage), limit: "daily" }, { status: 429 });
   }
-  if (session.userMessageCount >= MAX_USER_MESSAGES) {
+  if (session.userMessageCount >= usage.sessionMessages) {
     return Response.json(
       { error: "이 상담은 충분히 길어졌어요. 정리하고 새 상담으로 이어가 주세요.", limit: "session" },
       { status: 400 },
@@ -105,10 +106,15 @@ export async function POST(request: Request) {
         // 2) 캐릭터 답변 스트리밍
         const deep = route.mode === "plan" || route.mode === "interpret";
         // 검색은 해석·플랜에서 필요할 때, 그리고 수다 중에 사용자가 직접 찾아 달라고 했을 때
-        const searched = (deep || route.mode === "chat") && route.need_search;
+        // 오늘 검색 횟수를 다 썼으면 검색 없이 답하고, 그 사실을 한마디로 밝힌다
+        const wantsSearch = (deep || route.mode === "chat") && route.need_search;
+        const searched = wantsSearch && usage.searchesLeft > 0;
         let instruction = modeInstruction(route.mode, searched, countMode(history, "interpret"), countStreak(history, "chat"));
         if (searched && route.search_queries.length > 0) {
           instruction += `\n필요하면 web_search 도구로 이런 검색어를 찾아봐: ${route.search_queries.join(", ")}`;
+        }
+        if (wantsSearch && !searched) {
+          instruction += `\n- 오늘은 검색 횟수를 다 써서 검색할 수 없어. 검색 없이 아는 범위에서 답하고, "오늘은 검색을 다 써서 아는 만큼만 말해 볼게"처럼 한마디로 자연스럽게 밝혀. 최신 정보가 꼭 필요한 부분은 확실하지 않다고 말해.`;
         }
         if (route.crisis) {
           instruction = `[위기 신호 감지] 모드와 상관없이, 사용자의 안전을 먼저 걱정해 주고 자살예방상담전화 109, 정신건강위기상담 1577-0199, 위급하면 112/119를 꼭 안내해.`;
@@ -122,9 +128,10 @@ export async function POST(request: Request) {
         ];
 
         let fullText = "";
+        const sources = new SourceCollector();
         for (let turn = 0; turn < 4; turn++) {
           const reply = getClient().beta.messages.stream({
-            model: CHAT_MODEL,
+            model: chatModel,
             max_tokens: 16000,
             betas: ["server-side-fallback-2026-07-01", "mid-conversation-output-config-2026-07-01"],
             fallbacks: "default",
@@ -134,7 +141,7 @@ export async function POST(request: Request) {
             ],
             messages,
             ...(searched
-              ? { tools: [{ type: webSearchType(CHAT_MODEL), name: "web_search" as const, max_uses: 3 }] }
+              ? { tools: [{ type: webSearchType(chatModel), name: "web_search" as const, max_uses: Math.min(3, usage.searchesLeft) }] }
               : {}),
           });
 
@@ -147,7 +154,8 @@ export async function POST(request: Request) {
             }
           }
           const final = await reply.finalMessage();
-          await recordUsage(ctx.userId, "chat", final.model ?? CHAT_MODEL, final.usage, session.id);
+          sources.add(final.content);
+          await recordUsage(ctx.userId, "chat", final.model ?? chatModel, final.usage, session.id);
           if (final.stop_reason === "pause_turn") {
             // 웹 검색이 길어져 서버가 잠시 멈춘 경우: 이어서 진행
             messages = [...messages, { role: "assistant", content: final.content }];
@@ -164,8 +172,10 @@ export async function POST(request: Request) {
           role: "assistant",
           text: fullText.trim(),
           mode: route.mode,
+          sources: sources.result(),
           at: new Date().toISOString(),
         };
+        if (assistantMessage.sources) send({ type: "sources", sources: assistantMessage.sources });
         meta = await appendMessage(ctx, meta, assistantMessage);
         await updateSession(ctx, session.id, {
           mode: route.mode,
@@ -235,6 +245,40 @@ async function decideMode(
     console.error("router failed, keeping current mode", err);
   }
   return { mode: session.mode, reason: "판단 실패", need_search: false, search_queries: [], crisis: false };
+}
+
+/**
+ * 응답에서 웹 검색어와 참고한 글을 모은다. 블록 모양은 검색 도구 버전마다 조금 달라서 느슨하게 읽는다.
+ */
+class SourceCollector {
+  private queries: string[] = [];
+  private cited = new Map<string, string>();
+  private found = new Map<string, string>();
+
+  add(content: unknown[]) {
+    for (const block of content as Record<string, unknown>[]) {
+      if (block.type === "server_tool_use" && block.name === "web_search") {
+        const q = (block.input as { query?: unknown } | undefined)?.query;
+        if (typeof q === "string" && q.trim() && !this.queries.includes(q.trim())) this.queries.push(q.trim());
+      } else if (block.type === "web_search_tool_result" && Array.isArray(block.content)) {
+        for (const r of block.content as Record<string, unknown>[]) this.keep(this.found, r.url, r.title);
+      } else if (block.type === "text" && Array.isArray(block.citations)) {
+        for (const c of block.citations as Record<string, unknown>[]) this.keep(this.cited, c.url, c.title);
+      }
+    }
+  }
+
+  private keep(into: Map<string, string>, url: unknown, title: unknown) {
+    if (typeof url !== "string" || !/^https?:\/\//.test(url) || into.has(url)) return;
+    into.set(url, typeof title === "string" && title.trim() ? title.trim() : new URL(url).hostname);
+  }
+
+  result(): MessageSources | undefined {
+    if (this.queries.length === 0 && this.found.size === 0) return undefined;
+    // 답변에 인용된 글이 있으면 그것만 (검색 결과엔 상관없는 글도 섞여 있다). 인용 정보가 없으면 검색 결과 위쪽 5개.
+    const links = this.cited.size > 0 ? [...this.cited].slice(0, 8) : [...this.found].slice(0, 5);
+    return { queries: this.queries, links: links.map(([url, title]) => ({ url, title })) };
+  }
 }
 
 /** Claude 에 사진을 함께 보내는 최근 메시지 수 (toApiMessages 와 맞춘다) */
