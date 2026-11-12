@@ -103,7 +103,7 @@ export interface Allowance extends UsageStatus {
 }
 
 type SubStatus = "active" | "canceled" | "past_due";
-interface Snapshot {
+export interface Snapshot {
   sub: { status: SubStatus | "expired"; current_period_start: string; current_period_end: string; grace_until: string | null } | null;
   mine_day: number;
   searches_day: number;
@@ -115,11 +115,15 @@ interface Snapshot {
 export async function getAllowance(userId: string): Promise<Allowance> {
   const { data, error } = await createAdminClient().rpc("usage_snapshot", { p_user: userId, p_day: koreaDay() });
   if (error) console.error("usage snapshot failed", error);
-  const snap = (data ?? {}) as Partial<Snapshot>;
+  return allowanceFromSnapshot((data ?? {}) as Partial<Snapshot>);
+}
+
+/** DB 에서 읽은 오늘·이번 기간 사용량으로 요금제와 남은 한도를 계산한다 (DB 조회 없는 순수 계산) */
+export function allowanceFromSnapshot(snap: Partial<Snapshot>, now = Date.now()): Allowance {
   const sub = snap.sub ?? null;
   // 기간이 끝났어도 결제 재시도 중(grace_until)이면 Plus 를 유지한다
   const until = sub ? Math.max(new Date(sub.current_period_end).getTime(), sub.grace_until ? new Date(sub.grace_until).getTime() : 0) : 0;
-  const isPlus = !!sub && sub.status !== "expired" && until > Date.now();
+  const isPlus = !!sub && sub.status !== "expired" && until > now;
 
   const plus = PLANS.plus;
   const periodCapped = isPlus && plus.periodUsd !== null && Number(snap.mine_period ?? 0) >= plus.periodUsd;

@@ -98,7 +98,7 @@ const CARD_ISSUERS: Record<string, string> = {
   "62": "신협", "36": "씨티", "33": "우리", W1: "우리", "37": "우체국", "39": "저축은행", "35": "전북", "42": "제주",
   "15": "카카오뱅크", "3A": "케이뱅크", "24": "토스뱅크", "21": "하나", "61": "현대", "11": "KB국민", "91": "NH농협", "34": "수협",
 };
-function cardLabel(card?: TossCard): string | null {
+export function cardLabel(card?: Pick<TossCard, "issuerCode" | "number">): string | null {
   if (!card) return null;
   const name = (card.issuerCode && CARD_ISSUERS[card.issuerCode]) || "";
   // 토스는 끝자리까지 가려서 주므로 앞 4자리만 보여준다: "BC카드 9410-****"
@@ -122,6 +122,14 @@ function kstDate(d: Date): string {
 }
 
 const shortId = (userId: string) => userId.replace(/-/g, "").slice(0, 12);
+
+/**
+ * 갱신 결제 주문번호: 구독 + 결제 기간(한국 날짜) + 시도 횟수로 정해진다.
+ * 같은 기간·같은 시도는 늘 같은 번호라서, 스케줄러가 두 번 돌아도 payments.order_id 유일 제약에 막혀 한 번만 결제된다.
+ */
+export function renewalOrderId(userId: string, periodStart: Date, retryCount: number): string {
+  return `R-${shortId(userId)}-${kstDate(periodStart)}-${retryCount}`;
+}
 
 // ─────────────────────────────────────────────
 // 구매자 키와 빌링키
@@ -373,8 +381,7 @@ export async function runRenewals(now = new Date()): Promise<RenewalSummary> {
       userId: sub.user_id,
       billingKey: cust.billing_key,
       customerKey: cust.customer_key,
-      // 기간 + 시도 횟수로 정해지는 주문번호: 같은 날 여러 번 불러도 한 번만 결제된다
-      orderId: `R-${shortId(sub.user_id)}-${kstDate(periodStart)}-${sub.retry_count}`,
+      orderId: renewalOrderId(sub.user_id, periodStart, sub.retry_count),
       kind: "renewal",
       periodStart,
       periodEnd,

@@ -131,38 +131,55 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 ```
 src/
 ├─ app/
-│  ├─ page.tsx                  홈 (선톡, 내 사람들, 최근 상담)
-│  ├─ (sessions)/               PC에서 상담 목록 사이드바를 같이 쓰는 화면들 (주소에는 안 붙음)
-│  │  ├─ chats/                 상담 목록
-│  │  ├─ new/                   새 상담 (캐릭터와 인물 고르기)
-│  │  └─ chat/[id]/             채팅 화면, chat/[id]/summary 정리 카드
-│  ├─ people/                   인물 목록, 등록, 프로필 (PC에서 사람 목록 사이드바)
-│  ├─ me/                       마이페이지 (닉네임, 로그아웃, 탈퇴), me/print 기록 PDF용 인쇄 화면
-│  ├─ login/                    로그인 (카카오, 구글)
-│  ├─ welcome/                  첫 로그인 동의 화면
-│  ├─ privacy/ terms/ ai-notice/ 개인정보 처리방침, 이용약관, AI 답변 안내 (공개)
+│  ├─ landing/                  처음 온 사람에게 보여 주는 소개 화면 (로그인 안 하고 / 로 오면 proxy 가 바꿔 끼움)
+│  ├─ (app)/                    서비스 화면 묶음 (PC 왼쪽 메뉴와 가운데 틀을 쓰는 화면들, 주소에는 안 붙음)
+│  │  ├─ page.tsx               홈 (선톡, 내 사람들, 최근 상담, 설치 안내)
+│  │  ├─ (sessions)/            PC에서 상담 목록 사이드바를 같이 쓰는 화면들
+│  │  │  ├─ chats/              상담 목록
+│  │  │  ├─ new/                새 상담 (캐릭터와 인물 고르기)
+│  │  │  └─ chat/[id]/          채팅 화면, chat/[id]/summary 정리 카드
+│  │  ├─ people/                인물 목록, 등록, 프로필 (PC에서 사람 목록 사이드바)
+│  │  ├─ me/                    마이페이지 (닉네임, 로그아웃, 탈퇴), me/print 기록 PDF용 인쇄 화면
+│  │  ├─ plus/                  Plus 안내, 결제, 구독 관리, 영수증
+│  │  ├─ login/                 로그인 (카카오, 구글). 설치한 앱의 시작 주소
+│  │  ├─ welcome/               첫 로그인 동의 화면
+│  │  └─ privacy/ terms/ ai-notice/  개인정보 처리방침, 이용약관, AI 답변 안내 (공개)
 │  ├─ auth/                     로그인 콜백, 로그아웃
+│  ├─ manifest.ts               PWA 설정 (홈 화면 설치)
+│  ├─ robots.ts sitemap.ts      검색엔진에는 소개 화면과 약관만
 │  └─ api/
 │     ├─ chat/                  모드 판단과 답변 스트리밍 (NDJSON)
 │     ├─ sessions/              상담 생성·조회, [id]/summary 정리, [id]/apply 프로필 저장
 │     ├─ persons/               인물 CRUD, [id]/ask 물어보기
 │     ├─ usage/                 오늘 내 사용량 (퍼센트)
-│     └─ me/                    내 정보·닉네임·탈퇴, me/export 기록 내려받기
-├─ proxy.ts                     로그인 토큰 갱신, 로그인 안 했으면 /login 으로
-├─ components/                  캐릭터 얼굴, 아이콘, 하단 메뉴와 PC 세로 메뉴, 목록 사이드바, 인물 패널
+│     ├─ billing/               카드 등록, 결제, 해지·환불, renew (매일 자동 결제)
+│     └─ me/                    내 정보·닉네임·탈퇴, me/export 기록 내려받기, me/consent 동의
+├─ proxy.ts                     로그인 토큰 갱신, 로그인·동의 확인, 처음 온 사람에게 소개 화면
+├─ components/                  캐릭터 얼굴, 아이콘, 메뉴, 목록 사이드바, 인물 패널, 설치 안내, 서비스 워커 등록
 └─ lib/
    ├─ characters.ts             캐릭터 성격, 말투, 목소리 설정
    ├─ prompts.ts                안전 규칙, 모드별 지시, 모드 판단 프롬프트
    ├─ claude.ts                 Claude 클라이언트, 모델 설정, 오류 메시지
    ├─ db.ts                     Supabase 저장소 (인물, 상담, 메시지, 사진)
    ├─ auth.ts                   API 에서 로그인 확인 (requireUser)
-   ├─ usage.ts                  사용량 기록, 1인·전체 하루 한도
+   ├─ usage.ts                  사용량 기록, 요금제별·전체 하루 한도
+   ├─ plans.ts                  요금제 한도와 가격 (숫자는 여기서만)
+   ├─ billing.ts                토스페이먼츠 자동결제 (첫 결제, 갱신, 재시도, 환불)
+   ├─ legal.ts                  운영자·사업자 정보, 동의 버전
+   ├─ withdrawal.ts             탈퇴와 재가입 제한
    ├─ supabase/                 서버·브라우저·관리자용 Supabase 클라이언트
    ├─ types.ts                  데이터 타입
    ├─ format.ts                 조사 처리, 날짜, 말풍선 나누기
    └─ speech.ts                 브라우저 음성 인식과 합성
+public/
+├─ sw.js offline.html           서비스 워커 (오프라인 안내만 캐시, 상담 내용은 저장 안 함)
+├─ characters/                  캐릭터 얼굴 이미지 (scripts/character-faces.mjs 로 생성)
+└─ landing/                     소개 화면 스크린샷 (데모 계정)
+tests/
+├─ unit/                        단위 테스트 (Vitest, 외부 서비스 없음)
+└─ integration/                 실제 서버·DB 대상 통합 테스트
 supabase/migrations/            DB 테이블, RLS, 사진 저장소를 만드는 SQL
-scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 옮기는 스크립트
+scripts/                        캐릭터 얼굴 이미지 만들기, 예전 data/db.json 옮기기
 ```
 
 메시지 하나를 보내면 서버에서 두 단계를 거칩니다.
@@ -231,6 +248,18 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 - Vercel 무료(Hobby) 요금제는 상업적 이용이 안 됩니다. 테스트 결제까지는 무료로 쓰고, 실제 결제를 열기 전에 Pro로 바꾸거나 다른 곳으로 옮깁니다.
 - AI 답변과 결제를 기다리는 API는 `maxDuration = 300`(초)으로 둡니다.
 
+## 테스트
+
+```bash
+npm test                        # 단위 테스트 (몇 초, 외부 서비스 없음)
+npm run typecheck               # 타입 검사
+npm run build && npm run start  # 통합 테스트 전에 서버 켜기 (다른 터미널)
+npm run test:integration:quick  # 통합 테스트, AI 답변 항목 제외 (비용 없음)
+npm run test:integration        # 통합 테스트 전체 (Claude API 를 불러 비용이 조금 듦)
+```
+
+푸시와 PR 마다 GitHub Actions(`.github/workflows/ci.yml`)가 린트, 타입 검사, 단위 테스트, 빌드를 돌립니다. 통합 테스트는 실제 Supabase 에 테스트 계정을 만들기 때문에 자동으로 돌리지 않습니다. 자세한 내용은 [tests/integration/README.md](../tests/integration/README.md).
+
 ## 앞으로 할 일
 
 - [ ] 상담 품질 평가 세트 (프롬프트를 바꿀 때마다 기존 대화로 확인)
@@ -240,4 +269,7 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 - [x] PC용 2단 레이아웃
 - [x] 로그인과 실제 데이터베이스, 사용자별 사용량 제한
 - [x] 개인정보처리방침, AI 생성물 고지
-- [ ] PWA로 먼저 내고 앱으로 출시
+- [x] PWA (홈 화면 설치, 오프라인 안내)
+- [x] 자동 테스트 (단위 테스트 + CI, 통합 테스트)
+- [ ] 통합 테스트용 Supabase 프로젝트를 따로 두고 CI 에서 자동 실행
+- [ ] 스토어 앱 출시

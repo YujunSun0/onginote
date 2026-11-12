@@ -2,6 +2,8 @@
 
 **AI 캐릭터와 인간관계 고민을 이야기하고, 대화를 정리 카드와 인물 기록으로 남기는 웹 서비스**
 
+[![ci](https://github.com/YujunSun0/onginote/actions/workflows/ci.yml/badge.svg)](https://github.com/YujunSun0/onginote/actions/workflows/ci.yml)
+
 [서비스 바로가기](https://onginote.vercel.app) · [개발 문서](docs/DEVELOPMENT.md)
 
 <p>
@@ -35,7 +37,8 @@
 | AI | Claude API (Anthropic SDK): 스트리밍, 구조화 출력, 프롬프트 캐싱, 웹 검색 |
 | 결제 | 토스페이먼츠 자동결제 (빌링키) |
 | 로그인 | 카카오, 구글 (Supabase OAuth) |
-| 배포 | Vercel (서울 리전), GitHub Actions (매일 자동 결제 실행) |
+| 배포 | Vercel (서울 리전), GitHub Actions (CI, 매일 자동 결제 실행), PWA |
+| 테스트 | Vitest (단위), 실제 서버·DB 대상 통합 테스트 |
 
 ```
 브라우저 ──▶ Next.js (Vercel, 서울)
@@ -91,6 +94,17 @@ GitHub Actions (매일) ──▶ /api/billing/renew ─ 결제일이 된 구독
 - 메시지마다 가벼운 모델이 대화 흐름을 보고 **들어주기, 알아가기, 상황 해석, 반응, 플랜** 중 이번에 쓸 모드를 구조화 출력으로 고릅니다. 사용자가 입력창 위 버튼으로 직접 고를 수도 있습니다.
 - 질문만 계속하지 않도록 알아가기는 연속 두 번까지로 제한하고, 같은 해석을 반복하지 않도록 두 번째부터는 달라진 점만 말하게 했습니다.
 - 위기 신호가 보이면 상담 전화(109, 1577-0199)를 안내하고, 안전 문제로 답변이 거절되면 다른 모델이 자동으로 이어서 답합니다.
+
+## 테스트
+
+두 층으로 나눴습니다. 외부 서비스 없이 빠르게 도는 것은 푸시할 때마다 자동으로, 실제 DB와 AI를 쓰는 것은 배포 전에 돌립니다.
+
+| | 내용 | 실행 |
+|---|---|---|
+| 단위 테스트 61개 | 결제일 계산(31일 → 말일, 한국 시간 기준), 중복 결제를 막는 주문번호, 요금제·한도 판단(결제 재시도 중 Plus 유지, 한 달 한도, 서비스 전체 한도), 토큰 비용 계산, 동의 버전 확인 | `npm test` · GitHub Actions에서 린트, 타입 검사, 빌드와 함께 |
+| 통합 테스트 149개 | 켜 둔 서버에 테스트 계정으로 실제 요청: 다른 사람 기록 접근 차단(API와 DB 직접 접근 모두), 한도 초과 차단, 동의 전 대화 차단, 정기결제 갱신·재시도·해지·환불, 탈퇴 시 삭제 범위, 랜딩과 PWA 파일 | `npm run test:integration` (AI 항목을 빼면 `:quick`) |
+
+통합 테스트는 실행할 때마다 계정을 만들고, 중간에 실패해도 끝나면 지웁니다. 자세한 내용은 [tests/integration](tests/integration/README.md)에 있습니다.
 
 ## 직접 실행해 보기
 
