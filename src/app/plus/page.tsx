@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { BusinessInfo } from "@/components/BusinessInfo";
 import { BackIcon } from "@/components/Icons";
 
 type SubStatus = "active" | "canceled" | "past_due";
@@ -129,7 +130,7 @@ function Join({ data }: { data: Billing }) {
 
   async function start() {
     if (!agreed) {
-      setError("자동 결제 동의에 체크해 주세요.");
+      setError("결제 동의에 체크해 주세요.");
       return;
     }
     setBusy(true);
@@ -228,9 +229,16 @@ function Join({ data }: { data: Billing }) {
         </div>
       </section>
 
-      <p className="pt-6 text-center text-[11px] leading-relaxed text-muted">
-        매달 같은 날 {won(data.price)}(부가세 포함)이 자동 결제돼요. 결제는 토스페이먼츠가 처리하고, 카드 번호는 온기노트에 저장되지 않아요.
-      </p>
+      <ul className="mt-6 list-disc space-y-1 rounded-2xl bg-cream px-4 py-3 pl-8 text-[11px] leading-relaxed text-ink-soft">
+        <li>매달 처음 결제한 날에 {won(data.price)}(부가세 포함)이 자동 결제돼요. 해지하면 다음 결제일부터 결제되지 않아요.</li>
+        <li>
+          결제 후 {data.refundDays}일 안에 상담을 한 번도 하지 않았다면 전액 환불돼요. Plus는 바로 쓸 수 있는 디지털 서비스라, 결제 후 상담을 시작하면
+          청약철회가 제한돼요.
+        </li>
+        <li>미성년자가 법정대리인 동의 없이 결제했다면 본인이나 법정대리인이 취소할 수 있어요.</li>
+        <li>결제는 토스페이먼츠가 처리하고, 카드 번호는 온기노트에 저장되지 않아요.</li>
+      </ul>
+      <BusinessInfo className="pt-4 text-center" />
 
       {/* 아래 고정: 동의 + 결제 버튼 (PC 에서는 본문 아래에 둔다) */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-white/95 px-4 pb-5 pt-3 backdrop-blur lg:static lg:mt-6 lg:rounded-3xl lg:border lg:px-5 lg:py-4">
@@ -245,9 +253,14 @@ function Join({ data }: { data: Billing }) {
             className="mt-px h-4 w-4 shrink-0 accent-[var(--color-accent)]"
           />
           <span>
-            매달 {won(data.price)} 자동 결제에 동의해요 <b className="text-accent">(필수)</b> ·{" "}
+            위 내용을 확인했고, 매달 {won(data.price)} 자동 결제와 결제 정보 처리(토스페이먼츠 위탁)에 동의해요{" "}
+            <b className="text-accent">(필수)</b> ·{" "}
             <Link href="/terms" target="_blank" className="underline">
               이용약관
+            </Link>{" "}
+            ·{" "}
+            <Link href="/privacy" target="_blank" className="underline">
+              개인정보 처리방침
             </Link>
           </span>
         </label>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { POLICY_DATE } from "@/lib/legal";
+import { BusinessInfo } from "./BusinessInfo";
 import { LegalClose } from "./LegalClose";
 
 /** 약관·처리방침·AI 안내 공통 틀. 로그인 없이도 열린다. */
@@ -20,6 +21,7 @@ export function LegalDoc({ title, intro, children }: { title: string; intro?: Re
       <p className="pt-1 text-xs text-muted">시행일 {POLICY_DATE}</p>
       {intro && <div className="pt-4">{intro}</div>}
       <div className="flex flex-col gap-7 pt-6">{children}</div>
+      <BusinessInfo className="mt-10 border-t border-line pt-4" />
     </main>
   );
 }
