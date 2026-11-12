@@ -16,6 +16,7 @@ export default function NewSession() {
   const [personId, setPersonId] = useState<string | null>(null);
   const [voice, setVoice] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [blocked, setBlocked] = useState<{ error: string; free: boolean } | null>(null);
 
   useEffect(() => {
     const pre = new URLSearchParams(window.location.search).get("person");
@@ -39,6 +40,12 @@ export default function NewSession() {
       body: JSON.stringify({ characterId, personId, voice }),
     });
     const s = await res.json();
+    if (!res.ok) {
+      // 상담 수 한도 등: 안내를 보여주고 머문다
+      setBlocked({ error: s.error || "상담을 시작하지 못했어요.", free: Boolean(s.upgrade) });
+      setBusy(false);
+      return;
+    }
     router.push(`/chat/${s.id}`);
   }
 
@@ -144,6 +151,16 @@ export default function NewSession() {
       </section>
 
       <div className="fixed inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] mx-auto max-w-[min(42rem,calc(100%-32px))] lg:static lg:mt-8 lg:max-w-none lg:px-5">
+        {blocked && (
+          <div className="mb-2 rounded-2xl border border-line bg-white p-3.5 text-sm shadow-sm">
+            <p>{blocked.error}</p>
+            {blocked.free && (
+              <Link href="/plus" className="mt-2 inline-flex h-10 items-center rounded-full bg-accent px-4 text-sm font-bold text-white">
+                온기 패스 보기
+              </Link>
+            )}
+          </div>
+        )}
         <button
           onClick={start}
           disabled={busy}

@@ -3,6 +3,7 @@ import { CHARACTERS } from "@/lib/characters";
 import { appendMessage, createSession, getPerson, getSessionMeta, listSessions, updateSession } from "@/lib/db";
 import { josa } from "@/lib/format";
 import { summaryState, type CharacterId } from "@/lib/types";
+import { getUsageStatus, sessionStartBlock } from "@/lib/usage";
 
 export async function GET() {
   const auth = await requireUser();
@@ -38,6 +39,9 @@ export async function POST(request: Request) {
   };
   const character = CHARACTERS[body.characterId];
   if (!character) return Response.json({ error: "캐릭터를 골라 주세요." }, { status: 400 });
+  // 실제로 세는 건 첫 메시지를 보낼 때(/api/chat). 여기서는 막힐 상담을 미리 만들지 않게 한 번 확인한다
+  const block = sessionStartBlock(await getUsageStatus(ctx.userId));
+  if (block) return Response.json(block, { status: 429 });
 
   const person = body.personId ? await getPerson(ctx, body.personId) : null;
   const prev = body.fromFollowUpOf ? await getSessionMeta(ctx, body.fromFollowUpOf) : null;

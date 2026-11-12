@@ -485,7 +485,7 @@ export default function ChatClient({ id }: { id: string }) {
           </p>
           {plan?.id === "free" && (
             <Link href="/plus" className="flex h-11 shrink-0 items-center rounded-full bg-accent px-4 text-sm font-bold text-white">
-              Plus 보기
+              온기 패스 보기
             </Link>
           )}
         </div>

@@ -282,7 +282,7 @@ export async function startSubscription(userId: string, authKey: string, custome
 
   const sub = await getSub(userId);
   if (isLive(sub) && sub!.status !== "past_due") {
-    throw new BillingError(sub!.status === "canceled" ? "이미 Plus를 쓰고 있어요. 해지 취소로 이어서 쓸 수 있어요." : "이미 Plus를 쓰고 있어요.", 409, "ALREADY_PLUS");
+    throw new BillingError(sub!.status === "canceled" ? "이미 온기 패스를 쓰고 있어요. 해지 취소로 이어서 쓸 수 있어요." : "이미 온기 패스를 쓰고 있어요.", 409, "ALREADY_PLUS");
   }
 
   let issued: TossBilling;
@@ -467,7 +467,7 @@ export interface RefundCheck {
 export async function checkRefund(userId: string): Promise<RefundCheck> {
   const admin = createAdminClient();
   const sub = await getSub(userId);
-  if (!isLive(sub)) return { ok: false, reason: "이용 중인 Plus가 없어요." };
+  if (!isLive(sub)) return { ok: false, reason: "이용 중인 온기 패스가 없어요." };
   const { data: pay } = await admin
     .from("payments")
     .select("order_id,approved_at,status")

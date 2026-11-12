@@ -29,7 +29,15 @@ export async function GET() {
     joinedAt: profile?.created_at ?? user?.created_at ?? null,
     counts: { persons: persons.count ?? 0, sessions: sessions.count ?? 0, summaries: summaries.count ?? 0 },
     usagePercent: usage.percent,
-    plan: { id: usage.plan, until: usage.plusUntil, status: usage.plusStatus, periodCapped: usage.periodCapped },
+    plan: {
+      id: usage.plan,
+      until: usage.plusUntil,
+      status: usage.plusStatus,
+      periodCapped: usage.periodCapped,
+      sessionMessages: usage.sessionMessages,
+      monthlySessions: usage.monthlySessions,
+      sessionsLeftMonth: usage.sessionsLeftMonth,
+    },
   });
 }
 

@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 };
 
 const price = `${PLUS_PRICE_KRW.toLocaleString("ko-KR")}원`;
-const dailyRatio = Math.round(PLANS.plus.dailyUsd / PLANS.free.dailyUsd);
 
 const FEATURES = [
   {
@@ -250,16 +249,16 @@ function Pricing() {
   const rows = [
     { label: "캐릭터 4명과 상담", free: "✓", plus: "✓" },
     { label: "정리 카드 · 인물 기록", free: "✓", plus: "✓" },
-    { label: "하루 대화량", free: "기본", plus: `${dailyRatio}배` },
+    { label: "상담 수", free: `하루 ${PLANS.free.dailySessions}개 · 한 달 ${PLANS.free.monthlySessions}개`, plus: "제한 없음" },
     { label: "상담 하나에 보낼 수 있는 메시지", free: `${PLANS.free.sessionMessages}개`, plus: `${PLANS.plus.sessionMessages}개` },
-    { label: "하루 웹 검색", free: `${PLANS.free.dailySearches}번`, plus: `${PLANS.plus.dailySearches}번` },
+    { label: "하루 검색해서 답하기", free: `${PLANS.free.dailySearches}번`, plus: `${PLANS.plus.dailySearches}번` },
   ];
   return (
     <section className="px-5 py-16 lg:py-24">
       <SectionTitle
         eyebrow="요금"
-        title="무료로 충분히 써 보세요"
-        desc="답변은 무료와 Plus 모두 같은 캐릭터가 같은 방식으로 만들어요. Plus는 더 많이 이야기하고 싶을 때 골라요."
+        title="무료로 먼저 맛보세요"
+        desc="답변은 무료와 온기 패스 모두 같은 캐릭터가 같은 방식으로 만들어요. 온기 패스는 고민이 생길 때마다 언제든 이야기하고 싶을 때 골라요."
       />
       <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
         <div className="rounded-3xl border border-line bg-white p-6">
@@ -268,7 +267,7 @@ function Pricing() {
           <p className="mt-2 text-[13px] text-muted">가입하면 바로</p>
         </div>
         <div className="rounded-3xl border-2 border-accent bg-white p-6">
-          <p className="font-bold text-accent-text">Plus</p>
+          <p className="font-bold text-accent-text">온기 패스</p>
           <p className="mt-1 font-display text-3xl">
             {price}
             <span className="ml-1 font-sans text-sm font-normal text-muted">/ 월</span>
@@ -281,7 +280,7 @@ function Pricing() {
           <tr className="border-b border-line text-left text-[13px] text-muted">
             <th className="px-4 py-3 font-medium">비교</th>
             <th className="w-20 px-2 py-3 text-center font-medium sm:w-28">무료</th>
-            <th className="w-20 px-2 py-3 text-center font-medium text-accent-text sm:w-28">Plus</th>
+            <th className="w-20 px-2 py-3 text-center font-medium text-accent-text sm:w-28">온기 패스</th>
           </tr>
         </thead>
         <tbody>

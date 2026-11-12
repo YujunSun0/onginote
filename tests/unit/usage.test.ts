@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GLOBAL_BASE_DAILY_USD, GLOBAL_PER_PLUS_USD, PLANS } from "@/lib/plans";
-import { allowanceFromSnapshot, costOf, type Snapshot } from "@/lib/usage";
+import { allowanceFromSnapshot, costOf, sessionStartBlock, type Snapshot } from "@/lib/usage";
 
 const NOW = new Date("2026-11-12T03:00:00Z").getTime();
 const day = 24 * 3600e3;
@@ -69,13 +69,14 @@ describe("allowanceFromSnapshot: 한도", () => {
     expect(allow({ mine_day: used, sub: sub() }).exceeded).toBe(false);
   });
 
-  it("Plus 한 달 한도에 닿으면 무료 수준 하루 한도, 상담 길이는 Plus 그대로", () => {
-    const a = allow({ sub: sub(), mine_period: PLANS.plus.periodUsd! });
+  it("패스 한 달 한도에 닿으면 대화량·검색만 무료 수준, 상담 수와 길이는 패스 그대로", () => {
+    const a = allow({ sub: sub(), mine_period: PLANS.plus.periodUsd!, sessions_month: 50 });
     expect(a.plan).toBe("plus");
     expect(a.periodCapped).toBe(true);
     expect(a.limits.dailyUsd).toBe(PLANS.free.dailyUsd);
     expect(a.limits.dailySearches).toBe(PLANS.free.dailySearches);
     expect(a.sessionMessages).toBe(PLANS.plus.sessionMessages);
+    expect(a.sessionsLeftMonth).toBeNull();
   });
 
   it("남은 웹 검색 횟수는 0 아래로 내려가지 않는다", () => {
@@ -99,6 +100,38 @@ describe("allowanceFromSnapshot: 한도", () => {
   it("DB 값이 문자열(numeric)로 와도 계산된다", () => {
     const a = allow({ mine_day: String(PLANS.free.dailyUsd / 2) as unknown as number });
     expect(a.percent).toBe(50);
+  });
+});
+
+describe("상담 수 한도", () => {
+  it("무료는 하루·한 달 남은 상담 수를 센다", () => {
+    const a = allow({ sessions_day: 0, sessions_month: 3 });
+    expect(a.sessionsLeftToday).toBe(PLANS.free.dailySessions);
+    expect(a.sessionsLeftMonth).toBe(PLANS.free.monthlySessions! - 3);
+    expect(sessionStartBlock(a)).toBeNull();
+  });
+
+  it("오늘 상담을 다 쓰면 막고, 패스를 안내한다", () => {
+    const b = sessionStartBlock(allow({ sessions_day: PLANS.free.dailySessions!, sessions_month: 1 }));
+    expect(b?.limit).toBe("sessions_day");
+    expect(b?.upgrade).toBe(true);
+    expect(b?.error).toMatch(/온기 패스/);
+  });
+
+  it("한 달 상담을 다 쓰면 하루보다 먼저 한 달 이유로 막는다", () => {
+    const b = sessionStartBlock(allow({ sessions_day: 1, sessions_month: PLANS.free.monthlySessions! }));
+    expect(b?.limit).toBe("sessions_month");
+  });
+
+  it("패스는 한 달 제한이 없고, 하루 안전 상한만 있다", () => {
+    const a = allow({ sub: sub(), sessions_day: 3, sessions_month: 200 });
+    expect(a.sessionsLeftMonth).toBeNull();
+    expect(a.sessionsLeftToday).toBe(PLANS.plus.dailySessions! - 3);
+    expect(sessionStartBlock(a)).toBeNull();
+    const capped = sessionStartBlock(allow({ sub: sub(), sessions_day: PLANS.plus.dailySessions! }));
+    expect(capped?.limit).toBe("sessions_day");
+    expect(capped?.upgrade).toBe(false);
+    expect(capped?.error).not.toMatch(/온기 패스/);
   });
 });
 

@@ -91,7 +91,7 @@ function ReceiptView() {
           </div>
         )}
         <h1 className="pt-3 font-display text-[22px]">{isNew ? "결제가 완료됐어요" : refunded ? "환불된 결제예요" : "결제 상세"}</h1>
-        {isNew && <p className="pt-1 text-sm text-ink-soft">지금부터 Plus로 이야기할 수 있어요.</p>}
+        {isNew && <p className="pt-1 text-sm text-ink-soft">지금부터 온기 패스로 이야기할 수 있어요.</p>}
       </div>
 
       {/* 영수증 */}

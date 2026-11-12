@@ -24,7 +24,8 @@ export async function GET() {
   const limits = (p: keyof typeof PLANS) => ({
     dailySearches: PLANS[p].dailySearches,
     sessionMessages: PLANS[p].sessionMessages,
-    dailyRatio: Math.round(PLANS[p].dailyUsd / PLANS.free.dailyUsd),
+    dailySessions: PLANS[p].dailySessions,
+    monthlySessions: PLANS[p].monthlySessions,
   });
   return Response.json({
     plan: usage.plan,

@@ -13,7 +13,15 @@ interface Me {
   joinedAt: string | null;
   counts: { persons: number; sessions: number; summaries: number };
   usagePercent: number;
-  plan: { id: "free" | "plus"; until: string | null; status: "active" | "canceled" | "past_due" | null; periodCapped: boolean };
+  plan: {
+    id: "free" | "plus";
+    until: string | null;
+    status: "active" | "canceled" | "past_due" | null;
+    periodCapped: boolean;
+    sessionMessages: number;
+    monthlySessions: number | null;
+    sessionsLeftMonth: number | null;
+  };
 }
 
 const PROVIDER_LABEL: Record<string, string> = { kakao: "카카오", google: "구글" };
@@ -28,9 +36,11 @@ function dateLabel(iso: string | null) {
 function PlanCard({ plan }: { plan: Me["plan"] }) {
   const plus = plan.id === "plus";
   const note = !plus
-    ? "상담 하나에 메시지 40개, 하루 웹 검색 3번까지 쓸 수 있어요."
+    ? plan.monthlySessions !== null && plan.sessionsLeftMonth !== null
+      ? `이번 달 상담 ${plan.monthlySessions - plan.sessionsLeftMonth}/${plan.monthlySessions}개를 썼어요. 상담 하나에 메시지는 ${plan.sessionMessages}개까지예요.`
+      : `상담 하나에 메시지 ${plan.sessionMessages}개까지 쓸 수 있어요.`
     : plan.status === "canceled"
-      ? `해지했어요. ${dateLabel(plan.until)}까지 Plus로 쓸 수 있어요.`
+      ? `해지했어요. ${dateLabel(plan.until)}까지 온기 패스로 쓸 수 있어요.`
       : plan.status === "past_due"
         ? "결제가 안 돼서 다시 시도하고 있어요. 결제 수단을 확인해 주세요."
         : `다음 결제일은 ${dateLabel(plan.until)}이에요.`;
@@ -39,7 +49,7 @@ function PlanCard({ plan }: { plan: Me["plan"] }) {
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-lg">내 요금제</h2>
         <span className={`rounded-full px-3 py-1 text-sm font-bold ${plus ? "bg-accent text-white" : "bg-cream text-ink-soft"}`}>
-          {plus ? "Plus" : "무료"}
+          {plus ? "온기 패스" : "무료"}
         </span>
       </div>
       <p className="pt-2 text-sm text-ink-soft">{note}</p>
@@ -47,11 +57,11 @@ function PlanCard({ plan }: { plan: Me["plan"] }) {
         href="/plus"
         className={`mt-3 flex h-11 items-center justify-center rounded-full text-sm font-bold ${plus ? "border border-line-strong bg-white" : "bg-accent text-white"}`}
       >
-        {plus ? "구독 관리" : "Plus 알아보기"}
+        {plus ? "구독 관리" : "온기 패스 알아보기"}
       </Link>
       {plus && plan.periodCapped && (
         <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
-          이번 달 Plus 사용량을 다 써서, 다음 결제일까지는 무료와 같은 수준으로 이어서 쓸 수 있어요.
+          이번 달 온기 패스 사용량을 다 써서, 다음 결제일까지는 하루 대화량과 검색이 무료와 같은 수준이에요. 상담 수와 길이는 그대로예요.
         </p>
       )}
     </section>

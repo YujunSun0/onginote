@@ -8,8 +8,9 @@ import type { UsageKind } from "./types";
  *
  * 한도는 세 겹이다. 숫자는 plans.ts 에 있다.
  * - 사람마다 하루 한도 (요금제별): 한 사람이 많이 써도 다른 사람에게 영향이 없게
- * - Plus 구독 기간 한도: 넘으면 그 기간 남은 날은 무료 수준으로 (구독료보다 많이 쓰지 않게)
- * - 서비스 전체 하루 한도 (Plus 인원만큼 늘어남): 사용자가 몰려도 요금이 폭주하지 않게
+ * - 온기 패스 구독 기간 한도: 넘으면 그 기간 남은 날은 대화량·검색만 무료 수준으로 (구독료보다 많이 쓰지 않게)
+ * - 서비스 전체 하루 한도 (온기 패스 인원만큼 늘어남): 사용자가 몰려도 요금이 폭주하지 않게
+ * 이와 별도로 새로 시작하는 상담 수(하루·한 달)를 요금제별로 센다.
  */
 
 /** 100만 토큰당 가격 (달러). 캐시 쓰기는 입력의 1.25배(5분), 캐시 읽기는 0.1배. */
@@ -91,8 +92,14 @@ export interface UsageStatus {
   exceeded: boolean;
   /** 서비스 전체 한도에 닿아서 막힌 경우 */
   serviceBusy?: boolean;
-  /** 오늘 남은 웹 검색 횟수 */
+  /** 오늘 검색을 쓸 수 있는 남은 답변 수 */
   searchesLeft: number;
+  /** 오늘 새로 시작할 수 있는 상담 수. null 이면 제한 없음 */
+  sessionsLeftToday: number | null;
+  /** 이번 달 새로 시작할 수 있는 상담 수. null 이면 제한 없음 */
+  sessionsLeftMonth: number | null;
+  /** 한 달 상담 수 한도 (화면 표시용). null 이면 제한 없음 */
+  monthlySessions: number | null;
   /** 상담 하나에서 보낼 수 있는 내 메시지 수 */
   sessionMessages: number;
 }
@@ -107,6 +114,8 @@ export interface Snapshot {
   sub: { status: SubStatus | "expired"; current_period_start: string; current_period_end: string; grace_until: string | null } | null;
   mine_day: number;
   searches_day: number;
+  sessions_day: number;
+  sessions_month: number;
   mine_period: number;
   all_day: number;
   plus_members: number;
@@ -127,8 +136,13 @@ export function allowanceFromSnapshot(snap: Partial<Snapshot>, now = Date.now())
 
   const plus = PLANS.plus;
   const periodCapped = isPlus && plus.periodUsd !== null && Number(snap.mine_period ?? 0) >= plus.periodUsd;
-  // 기간 한도에 닿은 Plus 는 무료 수준으로 계속 쓴다 (상담 길이는 Plus 그대로)
-  const limits: PlanLimits = !isPlus ? PLANS.free : periodCapped ? { ...PLANS.free, sessionMessages: plus.sessionMessages } : plus;
+  // 기간 한도에 닿은 온기 패스는 대화량·검색만 무료 수준으로 (상담 수와 길이는 패스 그대로)
+  const limits: PlanLimits = !isPlus
+    ? PLANS.free
+    : periodCapped
+      ? { ...plus, dailyUsd: PLANS.free.dailyUsd, dailySearches: PLANS.free.dailySearches }
+      : plus;
+  const left = (max: number | null, used: unknown) => (max === null ? null : Math.max(0, max - Number(used ?? 0)));
 
   const ratio = Number(snap.mine_day ?? 0) / limits.dailyUsd;
   const globalBudget = GLOBAL_BASE_DAILY_USD + Number(snap.plus_members ?? 0) * GLOBAL_PER_PLUS_USD;
@@ -142,6 +156,9 @@ export function allowanceFromSnapshot(snap: Partial<Snapshot>, now = Date.now())
     exceeded: ratio >= 1 || serviceBusy,
     ...(serviceBusy ? { serviceBusy } : {}),
     searchesLeft: Math.max(0, limits.dailySearches - Number(snap.searches_day ?? 0)),
+    sessionsLeftToday: left(limits.dailySessions, snap.sessions_day),
+    sessionsLeftMonth: left(limits.monthlySessions, snap.sessions_month),
+    monthlySessions: limits.monthlySessions,
     sessionMessages: limits.sessionMessages,
     limits,
   };
@@ -159,6 +176,21 @@ export function budgetExceededMessage(status: UsageStatus): string {
     return "지금 이용하는 분이 많아서 오늘은 대화를 더 할 수 없어요. 내일 다시 이야기해요.";
   }
   return status.plan === "free"
-    ? "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요. Plus로 바꾸면 더 이야기할 수 있어요."
+    ? "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요. 온기 패스로 바꾸면 더 이야기할 수 있어요."
     : "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이야기해요.";
+}
+
+/** 새 상담을 시작할 수 있는지. 막히면 이유와 안내 문구 */
+export function sessionStartBlock(
+  status: UsageStatus,
+): { limit: "sessions_month" | "sessions_day"; error: string; upgrade: boolean } | null {
+  const upgrade = status.plan === "free";
+  const pass = upgrade ? " 온기 패스로 바꾸면 상담 수 제한 없이 이야기할 수 있어요." : "";
+  if (status.sessionsLeftMonth === 0) {
+    return { limit: "sessions_month", error: `이번 달 상담 ${status.monthlySessions}개를 모두 썼어요.${pass}`, upgrade };
+  }
+  if (status.sessionsLeftToday === 0) {
+    return { limit: "sessions_day", error: `오늘 시작할 수 있는 상담을 다 썼어요. 내일 새 상담을 시작할 수 있어요.${pass}`, upgrade };
+  }
+  return null;
 }

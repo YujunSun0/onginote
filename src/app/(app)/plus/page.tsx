@@ -21,7 +21,8 @@ interface Payment {
 interface Limits {
   dailySearches: number;
   sessionMessages: number;
-  dailyRatio: number;
+  dailySessions: number | null;
+  monthlySessions: number | null;
 }
 interface Billing {
   plan: "free" | "plus";
@@ -39,6 +40,9 @@ function dateLabel(iso: string | null | undefined) {
   return `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 }
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
+/** "하루 1개 · 한 달 10개" / 패스는 하루 상한이 안전장치라 "제한 없음"으로 보여준다 */
+const sessionsLabel = (l: Limits) =>
+  l.monthlySessions === null ? "제한 없음" : `하루 ${l.dailySessions}개 · 한 달 ${l.monthlySessions}개`;
 
 export default function PlusPage() {
   const [data, setData] = useState<Billing | null>(null);
@@ -59,7 +63,7 @@ export default function PlusPage() {
         <Link href="/me" aria-label="마이페이지로" className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-peach">
           <BackIcon size={22} />
         </Link>
-        <h1 className="font-display text-[22px]">{subscribed ? "구독 관리" : "온기노트 Plus"}</h1>
+        <h1 className="font-display text-[22px]">{subscribed ? "구독 관리" : "온기 패스"}</h1>
       </div>
 
       {loadError && <p className="mt-6 text-sm text-danger">정보를 불러오지 못했어요. 새로고침해 주세요.</p>}
@@ -82,29 +86,29 @@ export default function PlusPage() {
   );
 }
 
-/** 무료와 Plus 의 이용량 비교 (막대) */
+/** 무료와 온기 패스의 이용량 비교 (막대) */
 function Amounts({ data }: { data: Billing }) {
   const { free, plus } = data.limits;
   const rows: { label: string; free: string; plus: string; ratio: number }[] = [
-    { label: "하루 대화량", free: "기본", plus: `${plus.dailyRatio}배`, ratio: 1 / plus.dailyRatio },
-    { label: "웹 검색", free: `하루 ${free.dailySearches}번`, plus: `하루 ${plus.dailySearches}번`, ratio: free.dailySearches / plus.dailySearches },
+    { label: "상담 수", free: sessionsLabel(free), plus: sessionsLabel(plus), ratio: 0.1 },
+    { label: "검색해서 답하기", free: `하루 ${free.dailySearches}번`, plus: `하루 ${plus.dailySearches}번`, ratio: free.dailySearches / plus.dailySearches },
     { label: "상담 하나의 길이", free: `메시지 ${free.sessionMessages}개`, plus: `메시지 ${plus.sessionMessages}개`, ratio: free.sessionMessages / plus.sessionMessages },
   ];
   return (
     <section className="rounded-3xl border border-line bg-white p-5">
-      <h2 className="font-display text-lg">무료와 Plus</h2>
+      <h2 className="font-display text-lg">무료와 온기 패스</h2>
       <p className="pt-0.5 text-xs text-muted">답변은 똑같은 캐릭터가 해요. 이야기할 수 있는 양이 달라요.</p>
       <div className="space-y-4 pt-4">
         {rows.map((r) => (
           <div key={r.label}>
             <p className="pb-1.5 text-sm font-bold">{r.label}</p>
-            <div className="grid grid-cols-[36px_1fr_76px] items-center gap-x-2 gap-y-1.5 text-xs">
+            <div className="grid grid-cols-[36px_1fr_auto] items-center gap-x-2 gap-y-1.5 text-xs">
               <span className="text-muted">무료</span>
               <span className="h-2.5 overflow-hidden rounded-full bg-cream">
                 <span className="block h-full rounded-full bg-line-strong" style={{ width: `${Math.max(r.ratio * 100, 6)}%` }} />
               </span>
               <span className="text-right text-muted">{r.free}</span>
-              <span className="font-bold text-accent">Plus</span>
+              <span className="font-bold text-accent">패스</span>
               <span className="h-2.5 overflow-hidden rounded-full bg-cream">
                 <span className="block h-full w-full rounded-full bg-accent" />
               </span>
@@ -114,7 +118,7 @@ function Amounts({ data }: { data: Billing }) {
         ))}
       </div>
       <p className="pt-4 text-[11px] leading-relaxed text-muted">
-        한 달 이용량이 아주 많으면 Plus 사용 한도에 닿을 수 있어요. 그러면 다음 결제일까지 무료와 같은 양으로 이어서 쓸 수 있어요.
+        한 달 이용량이 아주 많으면 온기 패스 사용 한도에 닿을 수 있어요. 그러면 다음 결제일까지 하루 대화량과 검색은 무료와 같은 양으로, 상담 수와 길이는 그대로 쓸 수 있어요.
       </p>
     </section>
   );
@@ -160,14 +164,14 @@ function Join({ data }: { data: Billing }) {
   }
 
   const benefits = [
-    { icon: "☀️", title: `하루 대화량 ${plus.dailyRatio}배`, desc: "하고 싶은 얘기를 중간에 끊기지 않고" },
-    { icon: "🔍", title: `웹 검색 하루 ${plus.dailySearches}번`, desc: "비슷한 사례와 최신 정보를 찾아보고 답해요" },
+    { icon: "☀️", title: "상담 수 제한 없이", desc: "고민이 생길 때마다 언제든 새 상담을 시작해요" },
+    { icon: "🔍", title: `검색해서 답하기 하루 ${plus.dailySearches}번`, desc: "비슷한 사례와 최신 정보를 찾아보고 답해요" },
     { icon: "📒", title: `상담 하나에 메시지 ${plus.sessionMessages}개`, desc: "긴 고민도 한 상담에서 흐름을 이어서" },
   ];
   const faq: [string, string][] = [
-    ["해지는 어떻게 하나요?", "마이페이지 > 구독 관리에서 언제든 할 수 있어요. 해지하면 다음 결제일부터 결제되지 않고, 남은 기간까지는 Plus로 써요."],
+    ["해지는 어떻게 하나요?", "마이페이지 > 구독 관리에서 언제든 할 수 있어요. 해지하면 다음 결제일부터 결제되지 않고, 남은 기간까지는 온기 패스로 써요."],
     ["결제일은 언제예요?", "처음 결제한 날을 기준으로 매달 같은 날 결제돼요. 31일처럼 없는 날이 있는 달은 그달 말일에 결제돼요."],
-    ["무료와 답변이 달라지나요?", "아니요, 같은 캐릭터가 같은 방식으로 답해요. Plus는 하루에 이야기할 수 있는 양, 검색 횟수, 상담 길이가 늘어나요."],
+    ["무료와 답변이 달라지나요?", "아니요, 같은 캐릭터가 같은 방식으로 답해요. 온기 패스는 상담 수 제한이 없고, 검색 횟수와 상담 길이가 늘어나요."],
     ["무료로 돌아가면 기록은요?", "상담 기록과 정리 카드는 그대로 남아요."],
     ["환불은 되나요?", `결제 후 ${data.refundDays}일 안에 상담을 한 번도 하지 않았다면 구독 관리에서 환불을 요청할 수 있어요.`],
   ];
@@ -175,13 +179,13 @@ function Join({ data }: { data: Billing }) {
   return (
     <>
       <section className="mt-3 rounded-3xl bg-ink p-5 text-white">
-        <p className="text-xs font-bold text-peach-deep">온기노트 PLUS</p>
+        <p className="text-xs font-bold text-peach-deep">온기 패스</p>
         <h2 className="pt-2 font-display text-[26px] leading-snug">
           하루 {perDay}원으로
           <br />
           끊기지 않는 상담
         </h2>
-        <p className="pt-2 text-sm text-white/75">월 {won(data.price)} · 커피 세 잔 값으로 한 달 내내</p>
+        <p className="pt-2 text-sm text-white/75">월 {won(data.price)} · 커피 두 잔 값으로 한 달 내내</p>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {["썸 탈 때", "다툰 뒤에", "고백 전", "이별 후"].map((t) => (
             <span key={t} className="rounded-full bg-white/10 px-3 py-1 text-xs">
@@ -192,7 +196,7 @@ function Join({ data }: { data: Billing }) {
       </section>
 
       <section className="pt-6">
-        <h2 className="font-display text-lg">Plus 혜택</h2>
+        <h2 className="font-display text-lg">온기 패스 혜택</h2>
         <ul className="mt-3 space-y-2">
           {benefits.map((b) => (
             <li key={b.title} className="flex items-center gap-3.5 rounded-2xl bg-white p-4">
@@ -232,7 +236,7 @@ function Join({ data }: { data: Billing }) {
       <ul className="mt-6 list-disc space-y-1 rounded-2xl bg-cream px-4 py-3 pl-8 text-[11px] leading-relaxed text-ink-soft">
         <li>매달 처음 결제한 날에 {won(data.price)}(부가세 포함)이 자동 결제돼요. 해지하면 다음 결제일부터 결제되지 않아요.</li>
         <li>
-          결제 후 {data.refundDays}일 안에 상담을 한 번도 하지 않았다면 전액 환불돼요. Plus는 바로 쓸 수 있는 디지털 서비스라, 결제 후 상담을 시작하면
+          결제 후 {data.refundDays}일 안에 상담을 한 번도 하지 않았다면 전액 환불돼요. 온기 패스는 바로 쓸 수 있는 디지털 서비스라, 결제 후 상담을 시작하면
           청약철회가 제한돼요.
         </li>
         <li>미성년자가 법정대리인 동의 없이 결제했다면 본인이나 법정대리인이 취소할 수 있어요.</li>
@@ -307,16 +311,16 @@ function Manage({ data, onChange }: { data: Billing; onChange: () => void }) {
 
   const status =
     sub.status === "canceled"
-      ? `해지했어요. ${dateLabel(sub.current_period_end)}까지 Plus로 쓸 수 있어요.`
+      ? `해지했어요. ${dateLabel(sub.current_period_end)}까지 온기 패스로 쓸 수 있어요.`
       : sub.status === "past_due"
-        ? `결제가 안 됐어요. 하루 한 번 다시 시도하고, ${dateLabel(sub.grace_until)}까지는 Plus로 쓸 수 있어요.`
+        ? `결제가 안 됐어요. 하루 한 번 다시 시도하고, ${dateLabel(sub.grace_until)}까지는 온기 패스로 쓸 수 있어요.`
         : `다음 결제일은 ${dateLabel(sub.current_period_end)}이에요 (${won(data.price)}).`;
 
   return (
     <section className="rounded-3xl border border-line bg-white p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-lg">Plus 이용 중</h2>
-        <span className="rounded-full bg-accent px-3 py-1 text-sm font-bold text-white">Plus</span>
+        <h2 className="font-display text-lg">온기 패스 이용 중</h2>
+        <span className="rounded-full bg-accent px-3 py-1 text-sm font-bold text-white">패스</span>
       </div>
       <p className={`pt-2 text-sm ${sub.status === "past_due" ? "text-danger" : "text-ink-soft"}`}>{status}</p>
       {sub.card_label && <p className="pt-1 text-xs text-muted">결제 카드: {sub.card_label}</p>}
@@ -334,7 +338,7 @@ function Manage({ data, onChange }: { data: Billing; onChange: () => void }) {
           <p>
             {sub.status === "past_due"
               ? "해지하면 바로 무료로 바뀌어요."
-              : `해지해도 ${dateLabel(sub.current_period_end)}까지는 Plus로 쓸 수 있고, 그 뒤로는 결제되지 않아요.`}
+              : `해지해도 ${dateLabel(sub.current_period_end)}까지는 온기 패스로 쓸 수 있고, 그 뒤로는 결제되지 않아요.`}
           </p>
           <div className="mt-3 flex gap-2">
             <button onClick={() => act("cancel")} disabled={busy} className="h-11 flex-1 rounded-full bg-ink text-sm font-bold text-white disabled:opacity-40">

@@ -88,6 +88,11 @@ export default function Home() {
       body: JSON.stringify({ characterId: s.characterId, personId: s.personId, fromFollowUpOf: s.id }),
     });
     const created = await res.json();
+    if (!res.ok) {
+      // 상담 수 한도: 이어서 얘기할 수 없으면 안내만 한다
+      window.alert(created.error || "상담을 시작하지 못했어요.");
+      return;
+    }
     router.push(`/chat/${created.id}`);
   }
 

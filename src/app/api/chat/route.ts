@@ -14,6 +14,7 @@ import {
 import {
   MAX_IMAGES,
   MAX_INPUT_CHARS,
+  WRAP_UP_MESSAGES,
   messageImages,
   type ChatImage,
   type ChatMessage,
@@ -21,7 +22,8 @@ import {
   type Mode,
   type Session,
 } from "@/lib/types";
-import { budgetExceededMessage, getAllowance, getUsageStatus, recordUsage } from "@/lib/usage";
+import { SEARCHES_PER_ANSWER } from "@/lib/plans";
+import { budgetExceededMessage, getAllowance, getUsageStatus, recordUsage, sessionStartBlock } from "@/lib/usage";
 
 /** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
 export const maxDuration = 300;
@@ -79,6 +81,13 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  // 상담 수는 첫 메시지를 보낼 때 센다 (만들기만 한 빈 상담은 세지 않는다)
+  if (session.userMessageCount === 0) {
+    const block = sessionStartBlock(usage);
+    if (block) return Response.json(block, { status: 429 });
+  }
+  // 이번 메시지를 보내고 남는 수. 끝에 가까워지면 캐릭터가 자연스럽게 마무리하고 정리로 이끈다
+  const messagesLeft = usage.sessionMessages - session.userMessageCount - 1;
   const person = session.personId ? await getPerson(ctx, session.personId) : null;
   const character = CHARACTERS[session.characterId];
 
@@ -119,6 +128,14 @@ export async function POST(request: Request) {
         if (wantsSearch && !searched) {
           instruction += `\n- 오늘은 검색 횟수를 다 써서 검색할 수 없어. 검색 없이 아는 범위에서 답하고, "오늘은 검색을 다 써서 아는 만큼만 말해 볼게"처럼 한마디로 자연스럽게 밝혀. 최신 정보가 꼭 필요한 부분은 확실하지 않다고 말해.`;
         }
+        if (messagesLeft <= WRAP_UP_MESSAGES) {
+          instruction +=
+            messagesLeft === 0
+              ? `
+- 이 상담에서 사용자가 보내는 마지막 메시지야. 지금까지 이야기를 짧게 정리해 주고, 아래 '정리하기'를 누르면 오늘 이야기를 정리 카드로 남길 수 있다고 자연스럽게 알려 줘. 새 질문은 던지지 마.`
+              : `
+- 이 상담에서 사용자가 보낼 수 있는 메시지가 ${messagesLeft}개 남았어. 새 주제를 벌이지 말고, 지금 고민을 마무리하는 방향으로 이끌어 줘. 남은 개수를 직접 말하지는 마.`;
+        }
         if (route.crisis) {
           instruction = `[위기 신호 감지] 모드와 상관없이, 사용자의 안전을 먼저 걱정해 주고 자살예방상담전화 109, 정신건강위기상담 1577-0199, 위급하면 112/119를 꼭 안내해.`;
         }
@@ -144,7 +161,7 @@ export async function POST(request: Request) {
             ],
             messages,
             ...(searched
-              ? { tools: [{ type: webSearchType(chatModel), name: "web_search" as const, max_uses: Math.min(3, usage.searchesLeft) }] }
+              ? { tools: [{ type: webSearchType(chatModel), name: "web_search" as const, max_uses: SEARCHES_PER_ANSWER }] }
               : {}),
           });
 
