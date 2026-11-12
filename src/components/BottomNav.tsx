@@ -24,7 +24,7 @@ function BottomNavInner() {
   return (
     <nav
       aria-label="하단 메뉴"
-      className="fixed inset-x-0 bottom-3 z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-4 rounded-full border border-line bg-white lg:hidden"
+      className="fixed inset-x-0 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-10 mx-auto grid h-16 max-w-[min(42rem,calc(100%-24px))] grid-cols-4 rounded-full border border-line bg-white lg:hidden"
     >
       {NAV_ITEMS.map(({ href, label, Icon }) => {
         const active = isNavActive(href, path);

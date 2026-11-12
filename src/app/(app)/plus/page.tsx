@@ -241,7 +241,7 @@ function Join({ data }: { data: Billing }) {
       <BusinessInfo className="pt-4 text-center" />
 
       {/* 아래 고정: 동의 + 결제 버튼 (PC 에서는 본문 아래에 둔다) */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-white/95 px-4 pb-5 pt-3 backdrop-blur lg:static lg:mt-6 lg:rounded-3xl lg:border lg:px-5 lg:py-4">
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-white/95 px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:static lg:mt-6 lg:rounded-3xl lg:border lg:px-5 lg:py-4">
         <label className="flex cursor-pointer items-start gap-2 pb-2.5 text-xs text-ink-soft">
           <input
             type="checkbox"

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffe7d6" />
+    <title>연결이 끊겼어요 · 온기노트</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #fff8f1;
+        color: #2b1a12;
+        font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        word-break: keep-all;
+      }
+      main {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      img {
+        width: 96px;
+        height: 96px;
+        border-radius: 28px;
+      }
+      h1 {
+        margin: 20px 0 8px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0;
+        color: #74645a;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      button {
+        margin-top: 24px;
+        height: 48px;
+        padding: 0 28px;
+        border: 0;
+        border-radius: 999px;
+        background: #c4491b;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>인터넷 연결이 끊겼어요</h1>
+      <p>연결되면 이어서 이야기할 수 있어요.<br />보내던 메시지는 다시 보내 주세요.</p>
+      <button type="button" onclick="location.reload()">다시 시도</button>
+    </main>
+    <script>
+      window.addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

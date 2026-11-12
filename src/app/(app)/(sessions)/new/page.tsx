@@ -143,7 +143,7 @@ export default function NewSession() {
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-6 mx-auto max-w-[min(42rem,calc(100%-32px))] lg:static lg:mt-8 lg:max-w-none lg:px-5">
+      <div className="fixed inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] mx-auto max-w-[min(42rem,calc(100%-32px))] lg:static lg:mt-8 lg:max-w-none lg:px-5">
         <button
           onClick={start}
           disabled={busy}

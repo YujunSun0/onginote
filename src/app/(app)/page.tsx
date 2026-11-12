@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { CharacterAvatar, CharacterFace } from "@/components/CharacterFace";
 import { PlusIcon } from "@/components/Icons";
 import { CHARACTERS } from "@/lib/characters";
@@ -164,6 +165,7 @@ export default function Home() {
           </section>
         )}
       </div>
+      <InstallPrompt className="mx-5 mt-4 lg:mx-0 lg:mt-5" />
 
       <div className="lg:mt-7 lg:flex lg:gap-5">
         <section className="px-5 pt-6 lg:flex-[3] lg:rounded-[28px] lg:border lg:border-line lg:bg-white lg:p-5.5">

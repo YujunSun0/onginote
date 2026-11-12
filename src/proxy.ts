@@ -43,6 +43,9 @@ export async function proxy(request: NextRequest) {
     path === "/landing" ||
     path === "/robots.txt" ||
     path === "/sitemap.xml" ||
+    path === "/manifest.webmanifest" ||
+    path === "/sw.js" ||
+    path === "/offline.html" ||
     path.startsWith("/auth/") ||
     isLegal ||
     path === "/api/billing/renew";

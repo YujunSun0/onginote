@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Jua, Noto_Sans_KR } from "next/font/google";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import "./globals.css";
 
 const jua = Jua({ weight: "400", variable: "--font-jua", preload: false });
@@ -18,17 +19,24 @@ export const metadata: Metadata = {
     title: "온기노트 · 사람 때문에 고민될 때, 털어놓고 정리까지",
     description: DESCRIPTION,
   },
+  // 아이폰 홈 화면에 추가했을 때의 이름과 상단 상태 표시줄
+  appleWebApp: { capable: true, title: "온기노트", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#FFE7D6",
+  // 노치·홈 바 영역까지 화면을 쓰고, 하단 고정 요소는 env(safe-area-inset-bottom) 만큼 띄운다
+  viewportFit: "cover",
 };
 
 /** 화면 틀은 (app)/layout.tsx(서비스 화면)와 landing(소개 화면)이 각자 정한다 */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" className={`${jua.variable} ${noto.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

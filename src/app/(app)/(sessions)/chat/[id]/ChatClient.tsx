@@ -488,7 +488,7 @@ export default function ChatClient({ id }: { id: string }) {
           )}
         </div>
       ) : (
-      <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-5 pt-2.5 lg:rounded-none lg:px-8 lg:*:mx-auto lg:*:max-w-3xl">
+      <div className="shrink-0 rounded-t-3xl border-t border-line bg-white px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2.5 lg:rounded-none lg:px-8 lg:*:mx-auto lg:*:max-w-3xl">
         {(fewLeft || (usage !== null && usage >= 80)) && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-cream px-3 py-2 text-xs text-ink-soft">
             {usage !== null && usage >= 80 && <UsageMeter percent={usage} />}
