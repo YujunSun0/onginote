@@ -38,7 +38,21 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isLegal = LEGAL_PATHS.includes(path);
   // /api/billing/renew 는 스케줄러가 부른다 (로그인 대신 CRON_SECRET 으로 확인)
-  const isPublic = path === "/login" || path.startsWith("/auth/") || isLegal || path === "/api/billing/renew";
+  const isPublic =
+    path === "/login" ||
+    path === "/landing" ||
+    path === "/robots.txt" ||
+    path === "/sitemap.xml" ||
+    path.startsWith("/auth/") ||
+    isLegal ||
+    path === "/api/billing/renew";
+  // 처음 온 사람이 첫 주소로 오면 소개 화면을 보여 준다 (주소는 / 그대로).
+  // 앱은 시작 주소를 /login 으로 두므로 소개 화면 없이 바로 로그인한다.
+  if (!signedIn && path === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/landing";
+    return rewriteWithCookies(url, request, response);
+  }
   if (!signedIn && !isPublic) {
     if (path.startsWith("/api/")) {
       return Response.json({ error: "로그인이 필요해요." }, { status: 401 });
@@ -70,6 +84,13 @@ export async function proxy(request: NextRequest) {
     }
   }
   return response;
+}
+
+/** 화면만 바꿔 끼울 때도 갱신된 쿠키를 같이 보낸다. */
+function rewriteWithCookies(url: URL, request: NextRequest, from: NextResponse) {
+  const res = NextResponse.rewrite(url, { request });
+  from.cookies.getAll().forEach((c) => res.cookies.set(c));
+  return res;
 }
 
 /** 리다이렉트할 때도 갱신된 쿠키를 같이 보내야 다음 요청에서 로그아웃되지 않는다. */
