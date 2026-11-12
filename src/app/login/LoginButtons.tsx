@@ -16,7 +16,7 @@ export function LoginButtons({ next }: { next: string }) {
     const { error } = await createClient().auth.signInWithOAuth({
       provider,
       // 카카오: Supabase 가 이메일·닉네임·프로필 사진 동의를 기본으로 요청한다.
-      // 카카오 개발자 콘솔의 동의항목에서 셋 다 켜 둬야 한다 (README 의 설정 안내 참고).
+      // 카카오 개발자 콘솔의 동의항목에서 셋 다 켜 둬야 한다 (docs/DEVELOPMENT.md 의 설정 안내 참고).
       options: { redirectTo },
     });
     if (error) {
