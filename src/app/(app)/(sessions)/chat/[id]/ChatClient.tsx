@@ -111,6 +111,8 @@ export default function ChatClient({ id }: { id: string }) {
         setSession(session);
         setPerson(person);
         setMessages(session.messages);
+        // 화면이 숨겨졌다 다시 보일 때도 이 effect 가 다시 돈다. 그사이 다시 정리했으면 잠금으로 돌아가야 한다.
+        setUnlocked(false);
         setMode(session.mode);
         setVoiceOn(session.voice);
       });

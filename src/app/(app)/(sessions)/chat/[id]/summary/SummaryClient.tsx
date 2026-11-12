@@ -31,11 +31,14 @@ export default function SummaryClient({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [fresh, setFresh] = useState(false); // 이번에 새로 정리했는지 (X 동작이 달라진다)
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const r = await fetch(`/api/sessions/${id}`);
       const { session, person } = (await r.json()) as { session: Session; person: Person | null };
+      if (cancelled) return;
       setSession(session);
       setPerson(person);
       const show = (s: Summary, f: FollowUp | null) => {
@@ -56,17 +59,35 @@ export default function SummaryClient({ id }: { id: string }) {
       }
       // 처음 정리하거나, 정리한 뒤 이어서 얘기했으면 새로 정리한다
       setRefreshing(Boolean(stale));
+      setFresh(true);
       const res = await fetch(`/api/sessions/${id}/summary`, { method: "POST" });
       const j = await res.json();
+      // PC 사이드바의 정리 상태를 새로 고친다 (화면을 떠났어도 저장은 됐다)
+      if (res.ok) window.dispatchEvent(new Event("onginote:sessions"));
+      if (cancelled) return;
       if (!res.ok) {
         setError(j.error);
         return;
       }
       show(j.summary, j.followUp);
-      // PC 사이드바의 정리 상태를 새로 고친다
-      window.dispatchEvent(new Event("onginote:sessions"));
     })();
+    return () => {
+      cancelled = true;
+      // 이 화면은 숨겨졌다 다시 보일 때 상태가 남아 있다. 다시 열 때 예전 정리가 보이지 않게 비워 둔다.
+      setSummary(null);
+      setFollowUp(null);
+      setError(null);
+      setRefreshing(false);
+      setFresh(false);
+    };
   }, [id]);
+
+  // 방금 정리했으면 상담 목록으로, 이미 있던 정리를 본 거면 들어온 곳으로 돌아간다
+  function close() {
+    if (fresh) router.push("/chats");
+    else if (window.history.length > 1) router.back();
+    else router.push(`/chat/${id}`);
+  }
 
   async function toggleFollowUp(on: boolean) {
     setFollowUp((f) => (f ? { ...f, muted: !on } : f));
@@ -108,9 +129,9 @@ export default function SummaryClient({ id }: { id: string }) {
     <main className="pb-12 lg:mx-auto lg:max-w-2xl">
       <div className="flex items-center justify-between px-5 pb-1.5 pt-3.5">
         <h1 className="font-display text-xl">상담 정리</h1>
-        <Link href="/chats" aria-label="닫기" className="flex h-11 w-11 items-center justify-center">
+        <button type="button" onClick={close} aria-label="닫기" className="flex h-11 w-11 items-center justify-center">
           <XIcon />
-        </Link>
+        </button>
       </div>
 
       {!summary && !error && (
