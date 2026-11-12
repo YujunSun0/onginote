@@ -6,6 +6,9 @@ import { getPerson } from "@/lib/db";
 import { SAFETY_RULES, personContext } from "@/lib/prompts";
 import { budgetExceededMessage, getUsageStatus, recordUsage } from "@/lib/usage";
 
+/** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
+export const maxDuration = 300;
+
 /** 프로필 화면의 "물어보기": 저장된 기록을 바탕으로 짧게 답한다. */
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/persons/[id]/ask">) {
   const auth = await requireUser();

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LEGAL_PATHS } from "@/lib/legal";
 import { NAV_ITEMS, isNavActive } from "./BottomNav";
 
@@ -10,7 +10,7 @@ import { NAV_ITEMS, isNavActive } from "./BottomNav";
 const BARE_PATHS = ["/login", "/welcome", "/me/print", "/plus/success", "/plus/fail", ...LEGAL_PATHS];
 
 /** PC(lg 이상) 왼쪽 세로 메뉴. 아래쪽에 오늘 사용량을 보여준다. */
-export function SideRail() {
+function SideRailInner() {
   const path = usePathname();
   const [usage, setUsage] = useState<number | null>(null);
 
@@ -70,5 +70,17 @@ export function SideRail() {
         </div>
       )}
     </nav>
+  );
+}
+
+/**
+ * 주소(usePathname)는 동적 주소(/chat/[id] 등)에서 요청 때만 알 수 있어서 Suspense 로 감싼다.
+ * 정적 주소에서는 빌드 때 그대로 그려진다.
+ */
+export function SideRail() {
+  return (
+    <Suspense fallback={<div className="hidden w-[76px] shrink-0 lg:block" aria-hidden />}>
+      <SideRailInner />
+    </Suspense>
   );
 }

@@ -9,6 +9,9 @@ import { personContext, transcript } from "@/lib/prompts";
 import type { FollowUp, Summary } from "@/lib/types";
 import { recordUsage } from "@/lib/usage";
 
+/** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
+export const maxDuration = 300;
+
 const SummarySchema = z.object({
   title: z.string().describe("상황을 15자 안팎으로 요약한 제목"),
   situation: z.string(),

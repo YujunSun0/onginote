@@ -23,6 +23,9 @@ import {
 } from "@/lib/types";
 import { budgetExceededMessage, getAllowance, getUsageStatus, recordUsage } from "@/lib/usage";
 
+/** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
+export const maxDuration = 300;
+
 const RouterSchema = z.object({
   mode: z.enum(["chat", "listen", "explore", "interpret", "react", "offer_plan", "plan"]),
   reason: z.string(),

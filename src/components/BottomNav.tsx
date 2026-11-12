@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { ChatIcon, HomeIcon, MyIcon, PeopleIcon } from "./Icons";
 
@@ -18,7 +19,7 @@ export function isNavActive(href: string, path: string): boolean {
 }
 
 /** 모바일 하단 메뉴. PC(lg 이상)에서는 왼쪽 세로 메뉴(SideRail)가 대신한다. */
-export function BottomNav() {
+function BottomNavInner() {
   const path = usePathname();
   return (
     <nav
@@ -42,5 +43,17 @@ export function BottomNav() {
         );
       })}
     </nav>
+  );
+}
+
+/**
+ * 주소(usePathname)는 동적 주소(/chat/[id] 등)에서 요청 때만 알 수 있어서 Suspense 로 감싼다.
+ * 정적 주소에서는 빌드 때 그대로 그려진다.
+ */
+export function BottomNav() {
+  return (
+    <Suspense fallback={null}>
+      <BottomNavInner />
+    </Suspense>
   );
 }

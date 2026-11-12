@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { SearchIcon } from "@/components/Icons";
 import { daysUntilBirthday, relativeTime } from "@/lib/format";
 import type { Person } from "@/lib/types";
@@ -13,7 +13,7 @@ interface SessionLite {
 }
 
 /** PC 사람들 화면의 왼쪽 목록 */
-export function PeopleSidebar() {
+function PeopleSidebarInner() {
   const path = usePathname();
   const activeId = path.startsWith("/people/") ? path.split("/")[2] : null;
   const [persons, setPersons] = useState<Person[] | null>(null);
@@ -126,5 +126,17 @@ export function PeopleSidebar() {
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * 주소(usePathname)는 동적 주소(/chat/[id] 등)에서 요청 때만 알 수 있어서 Suspense 로 감싼다.
+ * 정적 주소에서는 빌드 때 그대로 그려진다.
+ */
+export function PeopleSidebar() {
+  return (
+    <Suspense fallback={<p className="p-5 text-sm text-muted">불러오는 중…</p>}>
+      <PeopleSidebarInner />
+    </Suspense>
   );
 }

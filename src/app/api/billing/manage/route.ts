@@ -1,6 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { BillingError, cancelSubscription, refundLatest, resumeSubscription } from "@/lib/billing";
 
+/** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
+export const maxDuration = 300;
+
 /** 해지, 해지 취소, 환불 */
 export async function POST(req: Request) {
   const auth = await requireUser();

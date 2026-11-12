@@ -1,6 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { BillingError, startSubscription } from "@/lib/billing";
 
+/** AI·결제 응답을 기다리는 시간 (Vercel 함수 최대 실행 시간, 초) */
+export const maxDuration = 300;
+
 /** 카드 등록 성공 화면에서 부른다: 빌링키 발급 + 첫 달 결제 */
 export async function POST(req: Request) {
   const auth = await requireUser();

@@ -1,0 +1,31 @@
+# 매달 자동 결제: 하루 한 번 배포된 서버의 /api/billing/renew 를 부른다.
+# 저장소 Settings → Secrets and variables → Actions 에 두 값을 넣어야 한다.
+#   APP_URL      배포 주소 (예: https://onginote.vercel.app, 끝에 / 없이)
+#   CRON_SECRET  서버 환경변수 CRON_SECRET 과 같은 값
+# 같은 날 여러 번 불러도 한 번만 결제되므로, Actions 탭에서 손으로 다시 돌려도 안전하다.
+name: billing-renew
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # 매일 00:00 UTC = 한국 시간 오전 9시 (GitHub 사정으로 조금 늦을 수 있다)
+  workflow_dispatch: {}
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call renew endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_URL 또는 CRON_SECRET 시크릿이 없어요. 건너뜁니다."
+            exit 0
+          fi
+          code=$(curl -sS -o body.json -w "%{http_code}" --max-time 300 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/billing/renew")
+          echo "HTTP $code"
+          cat body.json; echo
+          [ "$code" = "200" ]

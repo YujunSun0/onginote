@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { CharacterAvatar } from "@/components/CharacterFace";
 import { SearchIcon } from "@/components/Icons";
 import { SummaryBadge } from "@/components/SummaryBadge";
@@ -48,7 +48,7 @@ function groupLabel(iso: string, now: number): string {
  * - page: 모바일 상담 탭 (사람별 필터까지)
  * - sidebar: PC 왼쪽 목록 (지금 연 상담을 표시, 검색으로 사람·내용 찾기)
  */
-export function SessionList({ variant }: { variant: "page" | "sidebar" }) {
+function SessionListInner({ variant }: { variant: "page" | "sidebar" }) {
   const path = usePathname();
   const activeId = path.startsWith("/chat/") ? path.split("/")[2] : null;
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
@@ -224,5 +224,17 @@ function FilterChip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * 주소(usePathname)는 동적 주소(/chat/[id] 등)에서 요청 때만 알 수 있어서 Suspense 로 감싼다.
+ * 정적 주소에서는 빌드 때 그대로 그려진다.
+ */
+export function SessionList({ variant }: { variant: "page" | "sidebar" }) {
+  return (
+    <Suspense fallback={<p className="p-5 text-sm text-muted">불러오는 중…</p>}>
+      <SessionListInner variant={variant} />
+    </Suspense>
   );
 }

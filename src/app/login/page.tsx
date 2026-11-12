@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CharacterFace } from "@/components/CharacterFace";
 import { LoginButtons } from "./LoginButtons";
 import { REJOIN_BLOCK_DAYS } from "@/lib/withdrawal";
@@ -6,11 +7,7 @@ import { REJOIN_BLOCK_DAYS } from "@/lib/withdrawal";
 export const metadata = { title: "로그인 · 온기노트" };
 
 /** 로그인하지 않은 사람은 proxy.ts 가 여기로 보낸다. ?next= 는 로그인 뒤 돌아갈 곳. */
-export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const sp = await searchParams;
-  const next = typeof sp.next === "string" && sp.next.startsWith("/") ? sp.next : "/";
-  const notice = loginNotice(sp);
-
+export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm">
@@ -24,18 +21,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </p>
         </div>
 
-        {notice && (
-          <div
-            role={notice.tone === "error" ? "alert" : "status"}
-            className={`mt-6 rounded-2xl bg-white px-4 py-3 text-center text-sm leading-relaxed ${notice.tone === "error" ? "text-danger" : "text-ink-soft"}`}
-          >
-            {notice.lines.map((l) => (
-              <p key={l}>{l}</p>
-            ))}
-          </div>
-        )}
-
-        <LoginButtons next={next} />
+        {/* 주소의 ?next=, 안내 문구는 요청 때만 알 수 있어서 이 부분만 나중에 채운다 */}
+        <Suspense fallback={<div className="min-h-[136px]" />}>
+          <LoginBody searchParams={searchParams} />
+        </Suspense>
 
         <p className="pt-6 text-center text-xs leading-relaxed text-muted">
           상담 내용은 로그인한 본인만 볼 수 있어요.
@@ -49,6 +38,27 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </nav>
       </div>
     </main>
+  );
+}
+
+async function LoginBody({ searchParams }: Pick<PageProps<"/login">, "searchParams">) {
+  const sp = await searchParams;
+  const next = typeof sp.next === "string" && sp.next.startsWith("/") ? sp.next : "/";
+  const notice = loginNotice(sp);
+  return (
+    <>
+      {notice && (
+        <div
+          role={notice.tone === "error" ? "alert" : "status"}
+          className={`mt-6 rounded-2xl bg-white px-4 py-3 text-center text-sm leading-relaxed ${notice.tone === "error" ? "text-danger" : "text-ink-soft"}`}
+        >
+          {notice.lines.map((l) => (
+            <p key={l}>{l}</p>
+          ))}
+        </div>
+      )}
+      <LoginButtons next={next} />
+    </>
   );
 }
 

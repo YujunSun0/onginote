@@ -220,6 +220,17 @@ scripts/import-db-json.mjs      예전 data/db.json 을 Supabase 계정으로 �
 - **약관 버전**: 약관이나 처리방침을 크게 바꾸면 `src/lib/legal.ts`의 `CONSENT_VERSION`과 `POLICY_DATE`를 올립니다. 모든 회원이 다음 접속 때 `/welcome`에서 다시 동의합니다.
 
 
+## 배포 (Vercel)
+
+1. Vercel에서 **Add New → Project**로 이 GitHub 저장소를 가져옵니다. 설정은 기본값 그대로 둡니다. `vercel.json`이 서버 위치를 서울(`icn1`)로 정합니다.
+2. **Settings → Environment Variables**에 `.env.local`과 같은 값을 넣습니다. `NEXT_PUBLIC_`가 붙은 값은 빌드 때 들어가므로, 바꾸면 다시 배포해야 합니다.
+3. Supabase **Authentication → URL Configuration**에서 Site URL을 배포 주소로 바꾸고, Redirect URLs에 `https://<배포 주소>/auth/callback`을 추가합니다. 로컬 개발용 `http://localhost:3000/auth/callback`도 남겨 둡니다.
+4. 카카오 개발자 콘솔의 **플랫폼 → Web 사이트 도메인**에 배포 주소를 추가합니다. 카카오·구글의 Redirect URI는 Supabase 주소(`https://<프로젝트>.supabase.co/auth/v1/callback`)라서 바꾸지 않아도 됩니다.
+5. GitHub 저장소 **Settings → Secrets and variables → Actions**에 `APP_URL`(배포 주소)과 `CRON_SECRET`을 넣습니다. `.github/workflows/billing-renew.yml`이 매일 한국 시간 오전 9시쯤 자동 결제를 실행합니다. Actions 탭에서 손으로 돌려 볼 수도 있습니다.
+
+- Vercel 무료(Hobby) 요금제는 상업적 이용이 안 됩니다. 테스트 결제까지는 무료로 쓰고, 실제 결제를 열기 전에 Pro로 바꾸거나 다른 곳으로 옮깁니다.
+- AI 답변과 결제를 기다리는 API는 `maxDuration = 300`(초)으로 둡니다.
+
 ## 앞으로 할 일
 
 - [ ] 상담 품질 평가 세트 (프롬프트를 바꿀 때마다 기존 대화로 확인)
