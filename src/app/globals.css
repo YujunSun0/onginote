@@ -22,6 +22,7 @@
 
 html,
 body {
+  color-scheme: only light;
   background: #f6ebe1;
   color: var(--color-ink);
 }

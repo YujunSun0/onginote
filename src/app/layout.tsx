@@ -27,6 +27,8 @@ export const viewport: Viewport = {
   themeColor: "#FFE7D6",
   // 노치·홈 바 영역까지 화면을 쓰고, 하단 고정 요소는 env(safe-area-inset-bottom) 만큼 띄운다
   viewportFit: "cover",
+  // 라이트 모드 전용. 삼성 인터넷·크롬이 다크 모드에서 색을 억지로 뒤집으면 캐릭터 눈·코가 사라진다
+  colorScheme: "only light",
 };
 
 /** 화면 틀은 (app)/layout.tsx(서비스 화면)와 landing(소개 화면)이 각자 정한다 */

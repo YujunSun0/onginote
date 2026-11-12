@@ -1,6 +1,6 @@
 // 온기노트 서비스 워커.
 // 상담 내용은 민감해서 기기에 캐시하지 않는다. 화면 이동이 네트워크 문제로 실패했을 때만 오프라인 안내를 보여 준다.
-const CACHE = "onginote-offline-v1";
+const CACHE = "onginote-offline-v2";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
