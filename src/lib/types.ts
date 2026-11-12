@@ -125,5 +125,5 @@ export interface SessionMeta extends Omit<Session, "messages"> {
   lastAt: string | null;
 }
 
-export type UsageKind = "router" | "chat" | "summary" | "ask";
+export type UsageKind = "router" | "chat" | "summary" | "ask" | "report";
 

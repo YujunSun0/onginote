@@ -18,6 +18,8 @@ export function getClient(): Anthropic {
 // 모드 판단, 정리하기, 물어보기는 요금제와 상관없이 Haiku 5.5 (정해진 형식으로 짧게 답하는 일)
 export const ROUTER_MODEL = process.env.ONGI_ROUTER_MODEL || "claude-haiku-5-5";
 export const LIGHT_MODEL = process.env.ONGI_LIGHT_MODEL || "claude-haiku-5-5";
+// 리포트는 한 번 만들어 저장하고 돈을 받고 파는 결과물이라 더 깊이 읽는 모델을 쓴다 (건당 약 $0.07)
+export const REPORT_MODEL = process.env.ONGI_REPORT_MODEL || "claude-sonnet-5-5";
 
 export function apiErrorMessage(err: unknown): string {
   if (err instanceof MissingKeyError) {

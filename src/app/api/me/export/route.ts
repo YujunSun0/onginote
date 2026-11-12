@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth";
+import { listReports, toView } from "@/lib/reports";
 
 /** 내 기록 전체를 JSON 파일로 내려받는다 (개인정보 열람·이동 요청 대응). 사진은 파일 대신 저장 경로만 넣는다. */
 export async function GET() {
@@ -16,6 +17,7 @@ export async function GET() {
     sb.from("usage").select("at, kind, model, cost").eq("user_id", userId).order("at"),
   ]);
   const err = [profile, persons, sessions, messages, usage].find((r) => r.error)?.error;
+  const reports = await listReports(auth.ctx);
   if (err) return Response.json({ error: "기록을 모으지 못했어요." }, { status: 500 });
 
   const bySession = new Map<string, unknown[]>();
@@ -34,6 +36,11 @@ export async function GET() {
     },
     persons: (persons.data ?? []).map(withoutUserId),
     sessions: (sessions.data ?? []).map((s) => ({ ...withoutUserId(s), messages: bySession.get(s.id) ?? [] })),
+    // 결제 전 리포트는 화면과 같이 미리보기 부분만
+    reports: reports.map((r) => {
+      const v = toView(r, "mongle");
+      return { createdAt: v.createdAt, paid: v.paid, content: v.content };
+    }),
     usage: usage.data ?? [],
   };
 

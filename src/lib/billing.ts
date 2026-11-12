@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { BILLING_MAX_RETRIES, PLUS_ORDER_NAME, PLUS_PRICE_KRW, REFUND_DAYS } from "./plans";
+import { BILLING_MAX_RETRIES, PLUS_ORDER_NAME, PLUS_PRICE_KRW, REFUND_DAYS, REPORT_ORDER_NAME, REPORT_PRICE_KRW } from "./plans";
 import { createAdminClient } from "./supabase/server";
 
 /**
@@ -13,6 +13,8 @@ import { createAdminClient } from "./supabase/server";
  * 4) 해지하면 다음 결제만 하지 않는다. 기간이 끝나면 빌링키를 지운다.
  *
  * payments.order_id 가 유일해서, 결제 전에 행을 먼저 넣는 것이 같은 결제를 두 번 하지 않는 잠금이 된다.
+ *
+ * 리포트 단건 결제(일반결제)는 맨 아래: 결제창 → successUrl 로 돌아오면 서버가 금액을 확인하고 승인한다.
  */
 
 const TOSS_API = "https://api.tosspayments.com";
@@ -473,6 +475,7 @@ export async function checkRefund(userId: string): Promise<RefundCheck> {
     .select("order_id,approved_at,status")
     .eq("user_id", userId)
     .eq("status", "paid")
+    .in("kind", ["first", "renewal"]) // 리포트 단건 결제는 구독 환불 대상이 아니다
     .order("approved_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -516,4 +519,99 @@ export async function refundLatest(userId: string) {
     .update({ status: "expired", current_period_end: now, grace_until: null, next_retry_at: null, canceled_at: now, updated_at: now })
     .eq("user_id", userId);
   await deleteBillingKey(userId);
+}
+
+// ─────────────────────────────────────────────
+// 리포트 단건 결제 (일반결제)
+// ─────────────────────────────────────────────
+
+/** 일반결제용 구매자 키. 정기결제 동의(agreed_at)는 남기지 않는다 */
+async function customerKeyFor(userId: string): Promise<string> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("billing_customers").select("customer_key").eq("user_id", userId).maybeSingle();
+  if (data?.customer_key) return data.customer_key;
+  const customerKey = `ongi_${randomUUID()}`;
+  const { error } = await admin.from("billing_customers").insert({ user_id: userId, customer_key: customerKey });
+  if (error && error.code !== "23505") throw error;
+  if (error) return customerKeyFor(userId); // 동시에 만들어졌으면 그 값을 쓴다
+  return customerKey;
+}
+
+/** 결제창을 열기 전: 주문을 만든다 (금액은 서버가 정하고, 승인할 때 다시 확인한다) */
+export async function prepareReportPayment(userId: string, reportId: string) {
+  const admin = createAdminClient();
+  const { data: report } = await admin.from("reports").select("id, user_id, paid_at").eq("id", reportId).maybeSingle();
+  if (!report || report.user_id !== userId) throw new BillingError("리포트를 찾을 수 없어요.", 404);
+  if (report.paid_at) throw new BillingError("이미 결제한 리포트예요.", 409, "ALREADY_PAID");
+  const orderId = `P-${shortId(userId)}-${Date.now().toString(36)}`;
+  const { error } = await admin.from("payments").insert({
+    user_id: userId,
+    order_id: orderId,
+    kind: "report",
+    status: "pending",
+    amount: REPORT_PRICE_KRW,
+    report_id: reportId,
+  });
+  if (error) throw error;
+  return { orderId, amount: REPORT_PRICE_KRW, orderName: REPORT_ORDER_NAME, customerKey: await customerKeyFor(userId) };
+}
+
+/**
+ * 결제창에서 돌아온 뒤: 우리 주문과 금액이 맞는지 확인하고 토스에 승인을 요청한다.
+ * 새로고침 등으로 두 번 불려도 한 번만 승인된다 (이미 paid 면 그대로 돌려준다).
+ */
+export async function confirmReportPayment(userId: string, input: { paymentKey: string; orderId: string; amount: number }) {
+  const admin = createAdminClient();
+  const { data: pay } = await admin
+    .from("payments")
+    .select("order_id, user_id, kind, status, amount, report_id")
+    .eq("order_id", input.orderId)
+    .maybeSingle();
+  if (!pay || pay.user_id !== userId || pay.kind !== "report" || !pay.report_id) throw new BillingError("주문을 찾을 수 없어요.", 404);
+  if (pay.status === "paid") return { reportId: pay.report_id as string };
+  if (pay.status !== "pending") throw new BillingError("이미 끝난 주문이에요. 처음부터 다시 결제해 주세요.");
+  // 결제창에서 넘어온 금액을 믿지 않는다: 우리가 만든 주문 금액과 같아야 한다
+  if (Number(input.amount) !== pay.amount) throw new BillingError("결제 금액이 주문과 달라요.", 400, "AMOUNT_MISMATCH");
+
+  let payment: TossPayment | null = null;
+  try {
+    payment = await toss<TossPayment>(
+      "POST",
+      "/v1/payments/confirm",
+      { paymentKey: input.paymentKey, orderId: input.orderId, amount: pay.amount },
+      `confirm-${input.orderId}`,
+    );
+  } catch (err) {
+    if (err instanceof TossError && isMerchantError(err)) {
+      console.error("toss merchant error", err.code, err.message);
+      throw new BillingError("결제 설정에 문제가 있어요. 잠시 후 다시 시도해 주세요.", 503, err.code);
+    }
+    if (err instanceof TossError && err.code !== "ALREADY_PROCESSED_PAYMENT") {
+      await admin.from("payments").update({ status: "failed", failure: `${err.code}: ${err.message}` }).eq("order_id", input.orderId);
+      throw new BillingError(`결제하지 못했어요. ${err.message}`, 402, err.code);
+    }
+    // 이미 승인됐거나 응답을 못 받았다: 실제 결제 상태를 확인한다
+    try {
+      payment = await toss<TossPayment>("GET", `/v1/payments/orders/${encodeURIComponent(input.orderId)}`);
+    } catch {
+      throw new BillingError("결제 결과를 확인하지 못했어요. 잠시 후 다시 확인해 주세요.", 502);
+    }
+  }
+  if (!payment || payment.status !== "DONE" || payment.orderId !== input.orderId || payment.totalAmount !== pay.amount) {
+    await admin.from("payments").update({ status: "failed", failure: `상태 ${payment?.status ?? "알 수 없음"}` }).eq("order_id", input.orderId);
+    throw new BillingError("결제가 완료되지 않았어요.", 402);
+  }
+  const approvedAt = payment.approvedAt ?? new Date().toISOString();
+  await admin
+    .from("payments")
+    .update({
+      status: "paid",
+      payment_key: payment.paymentKey,
+      approved_at: approvedAt,
+      receipt_url: payment.receipt?.url ?? null,
+      card_label: cardLabel(payment.card),
+    })
+    .eq("order_id", input.orderId);
+  await admin.from("reports").update({ paid_at: approvedAt, order_id: input.orderId }).eq("id", pay.report_id);
+  return { reportId: pay.report_id as string };
 }

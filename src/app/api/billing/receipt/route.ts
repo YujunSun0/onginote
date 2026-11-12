@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { PLUS_ORDER_NAME } from "@/lib/plans";
+import { PLUS_ORDER_NAME, REPORT_ORDER_NAME } from "@/lib/plans";
 
 /** 결제 한 건의 상세 (영수증 화면). 본인 결제만 보인다 (RLS). */
 export async function GET(req: Request) {
@@ -20,5 +20,5 @@ export async function GET(req: Request) {
   // 이 결제가 지금 기간의 결제이고 자동 결제 중이면 다음 결제일을 같이 보여준다
   const nextBillingAt =
     pay.status === "paid" && sub?.status === "active" && !!pay.period_end && new Date(sub.current_period_end).getTime() === new Date(pay.period_end).getTime() ? sub.current_period_end : null;
-  return Response.json({ ...pay, orderName: PLUS_ORDER_NAME, nextBillingAt });
+  return Response.json({ ...pay, orderName: pay.kind === "report" ? REPORT_ORDER_NAME : PLUS_ORDER_NAME, nextBillingAt });
 }

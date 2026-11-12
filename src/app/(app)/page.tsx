@@ -10,6 +10,7 @@ import { PlusIcon } from "@/components/Icons";
 import { CHARACTERS } from "@/lib/characters";
 import { birthdayLabel, daysUntilBirthday, josa, relativeTime, todayLabel } from "@/lib/format";
 import { SummaryBadge } from "@/components/SummaryBadge";
+import { REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
 import type { CharacterId, FollowUp, Person, SummaryState } from "@/lib/types";
 
 interface SessionRow {
@@ -22,6 +23,35 @@ interface SessionRow {
   summaryState?: SummaryState;
   followUp?: FollowUp;
   todos?: { text: string; done: boolean }[];
+}
+
+/** 연애 성향 리포트까지의 진행도. 정리한 상담이 쌓일수록 칸이 찬다 */
+function ReportBanner({ summarized }: { summarized: number }) {
+  const done = Math.min(summarized, REPORT_UNLOCK_SESSIONS);
+  const ready = summarized >= REPORT_UNLOCK_SESSIONS;
+  return (
+    <Link href="/report" className="mx-5 mt-4 flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3.5 hover:bg-cream lg:mx-0 lg:mt-5">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach text-xl" aria-hidden>
+        {ready ? "🎁" : "🔍"}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold">{ready ? "나의 연애 성향 리포트가 준비됐어요" : "나의 연애 성향 리포트"}</span>
+        <span className="block text-[13px] text-ink-soft">
+          {ready ? "내 상담으로 찾은 나의 연애 유형을 확인해 보세요" : `정리한 상담 ${REPORT_UNLOCK_SESSIONS - done}개만 더 있으면 리포트를 만들 수 있어요`}
+        </span>
+        {!ready && (
+          <span className="mt-2 flex gap-1" aria-label={`정리한 상담 ${done}/${REPORT_UNLOCK_SESSIONS}개`}>
+            {Array.from({ length: REPORT_UNLOCK_SESSIONS }, (_, i) => (
+              <span key={i} className={`h-1.5 flex-1 rounded-full ${i < done ? "bg-bubble" : "bg-line"}`} />
+            ))}
+          </span>
+        )}
+      </span>
+      <span className="text-muted" aria-hidden>
+        ›
+      </span>
+    </Link>
+  );
 }
 
 /** 홈 카드 제목 */
@@ -171,6 +201,7 @@ export default function Home() {
         )}
       </div>
       <InstallPrompt className="mx-5 mt-4 lg:mx-0 lg:mt-5" />
+      {now !== null && <ReportBanner summarized={sessions.filter((s) => s.summaryState && s.summaryState !== "none").length} />}
 
       <div className="lg:mt-7 lg:flex lg:gap-5">
         <section className="px-5 pt-6 lg:flex-[3] lg:rounded-[28px] lg:border lg:border-line lg:bg-white lg:p-5.5">

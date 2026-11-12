@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
 
 interface Me {
   nickname: string | null;
@@ -100,6 +101,23 @@ export default function MyPage() {
           <ProfileCard me={me} onSaved={(nickname) => setMe({ ...me, nickname })} />
 
           <PlanCard plan={me.plan} />
+
+          <Link href="/report" className="flex items-center gap-3 rounded-3xl border border-line bg-white p-5 hover:bg-cream">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach text-xl" aria-hidden>
+              🔍
+            </span>
+            <span className="flex-1">
+              <span className="block font-display text-lg">나의 연애 성향 리포트</span>
+              <span className="block text-sm text-ink-soft">
+                {me.counts.summaries >= REPORT_UNLOCK_SESSIONS
+                  ? "내 상담으로 찾은 나의 연애 유형"
+                  : `정리한 상담 ${me.counts.summaries}/${REPORT_UNLOCK_SESSIONS}개 · ${REPORT_UNLOCK_SESSIONS - me.counts.summaries}개 더 모이면 열려요`}
+              </span>
+            </span>
+            <span className="text-muted" aria-hidden>
+              ›
+            </span>
+          </Link>
 
           <Card title="오늘 사용량">
             <div className="flex items-center gap-3">

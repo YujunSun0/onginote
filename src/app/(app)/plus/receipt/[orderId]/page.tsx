@@ -8,7 +8,7 @@ import { BackIcon } from "@/components/Icons";
 interface Receipt {
   order_id: string;
   orderName: string;
-  kind: "first" | "renewal";
+  kind: "first" | "renewal" | "report";
   status: "paid" | "refunded";
   amount: number;
   period_start: string | null;
@@ -70,7 +70,7 @@ function ReceiptView() {
     ["상품", r.orderName],
     ["결제 수단", r.card_label ?? "카드"],
     ["결제 일시", dateTimeLabel(r.approved_at)],
-    ["이용 기간", `${dateLabel(r.period_start)} ~ ${dateLabel(r.period_end)}`],
+    ...(r.kind === "report" ? [] : ([["이용 기간", `${dateLabel(r.period_start)} ~ ${dateLabel(r.period_end)}`]] as [string, string][])),
     ...(r.nextBillingAt ? ([["다음 결제일", `${dateLabel(r.nextBillingAt)} (${won(r.amount)})`]] as [string, string][]) : []),
     ...(refunded ? ([["환불 일시", dateTimeLabel(r.refunded_at)]] as [string, string][]) : []),
     ["주문번호", r.order_id],
@@ -79,7 +79,7 @@ function ReceiptView() {
   return (
     <>
       {!isNew && (
-        <Link href="/plus" aria-label="구독 정보로" className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-peach">
+        <Link href={r.kind === "report" ? "/report" : "/plus"} aria-label={r.kind === "report" ? "리포트로" : "구독 정보로"} className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-peach">
           <BackIcon size={22} />
         </Link>
       )}
@@ -128,7 +128,7 @@ function ReceiptView() {
       </section>
 
       <p className="pt-3 text-center text-xs leading-relaxed text-muted">
-        {refunded ? "환불은 카드사에 따라 3~7일 걸릴 수 있어요." : "결제 내역은 마이페이지 > 구독 관리에서 언제든 볼 수 있어요."}
+        {refunded ? "환불은 카드사에 따라 3~7일 걸릴 수 있어요." : r.kind === "report" ? "리포트는 마이페이지 > 나의 연애 성향 리포트에서 언제든 다시 볼 수 있어요." : "결제 내역은 마이페이지 > 구독 관리에서 언제든 볼 수 있어요."}
       </p>
 
       {isNew ? (

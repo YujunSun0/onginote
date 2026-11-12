@@ -7,7 +7,7 @@ import { LEGAL_PATHS } from "@/lib/legal";
 import { NAV_ITEMS, isNavActive } from "./BottomNav";
 
 /** 메뉴 없이 보여주는 화면: 로그인, 동의, 인쇄용 기록, 약관 문서 */
-const BARE_PATHS = ["/login", "/welcome", "/me/print", "/plus/success", "/plus/fail", ...LEGAL_PATHS];
+const BARE_PATHS = ["/login", "/welcome", "/me/print", "/plus/success", "/plus/fail", "/report/success", "/report/fail", ...LEGAL_PATHS];
 
 /** PC(lg 이상) 왼쪽 세로 메뉴. 아래쪽에 오늘 사용량을 보여준다. */
 function SideRailInner() {

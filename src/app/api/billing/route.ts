@@ -16,6 +16,7 @@ export async function GET() {
       .from("payments")
       .select("order_id, kind, status, amount, card_label, receipt_url, approved_at, refunded_at, created_at, period_end")
       .in("status", ["paid", "refunded", "failed"])
+      .in("kind", ["first", "renewal"]) // 리포트 결제는 리포트 화면에서 본다
       .order("created_at", { ascending: false })
       .limit(24),
     checkRefund(userId),
