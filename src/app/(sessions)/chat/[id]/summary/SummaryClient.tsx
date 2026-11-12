@@ -108,7 +108,7 @@ export default function SummaryClient({ id }: { id: string }) {
     <main className="pb-12 lg:mx-auto lg:max-w-2xl">
       <div className="flex items-center justify-between px-5 pb-1.5 pt-3.5">
         <h1 className="font-display text-xl">상담 정리</h1>
-        <Link href={`/chat/${id}`} aria-label="상담으로 돌아가기" className="flex h-11 w-11 items-center justify-center">
+        <Link href="/chats" aria-label="닫기" className="flex h-11 w-11 items-center justify-center">
           <XIcon />
         </Link>
       </div>

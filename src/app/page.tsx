@@ -64,7 +64,7 @@ export default function Home() {
     .filter((s) => s.followUp && !s.followUp.dismissed && !s.followUp.muted)
     .sort((a, b) => a.followUp!.dueAt.localeCompare(b.followUp!.dueAt));
 
-  const recent = [...sessions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3);
+  const recent = [...sessions].sort((a, b) => b.lastAt.localeCompare(a.lastAt)).slice(0, 3); // 상담 목록과 같은 기준: 마지막 대화 순
   const personName = (id: string | null) => persons.find((p) => p.id === id)?.name;
 
   // 정리 카드의 "할 것"을 최근 상담부터 모은다. 안 한 것 먼저, 끝낸 것은 최근 두 개만.
@@ -225,7 +225,7 @@ export default function Home() {
                         <span className="block truncate font-medium">{s.title ?? `${josa(c.name, "과", "와")}의 상담`}</span>
                         <span className="block text-xs text-muted">
                           {personName(s.personId) ? `${personName(s.personId)} 이야기 · ` : ""}
-                          {relativeTime(s.createdAt)}
+                          {relativeTime(s.lastAt)}
                         </span>
                       </span>
                       <SummaryBadge state={s.summaryState} />
