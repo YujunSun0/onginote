@@ -145,13 +145,20 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <span className="font-display text-2xl text-accent-text">온기노트</span>
             {usage !== null && (
-              <span className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs text-ink-soft lg:hidden" title="하루 대화량 중 오늘 쓴 비율">
+              <Link
+                href="/usage"
+                className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs text-ink-soft hover:bg-white"
+                title="하루 대화량 중 오늘 쓴 비율 · 누르면 자세히 볼 수 있어요"
+              >
                 오늘 사용량
                 <span className="h-1.5 w-12 overflow-hidden rounded-full bg-line" aria-hidden>
                   <span className={`block h-full rounded-full ${usage >= 80 ? "bg-accent" : "bg-teal"}`} style={{ width: `${Math.max(usage, 2)}%` }} />
                 </span>
                 <span className="font-bold tabular-nums">{usage}%</span>
-              </span>
+                <span className="text-muted" aria-hidden>
+                  ›
+                </span>
+              </Link>
             )}
           </div>
           <p className="pt-2 text-sm text-muted">{today}</p>

@@ -175,7 +175,7 @@ export async function POST(request: Request) {
           }
           const final = await reply.finalMessage();
           sources.add(final.content);
-          await recordUsage(ctx.userId, "chat", final.model ?? chatModel, final.usage, session.id);
+          await recordUsage(ctx.userId, "chat", final.model ?? chatModel, final.usage, session.id, usage.limits.dailyUsd);
           if (final.stop_reason === "pause_turn") {
             // 웹 검색이 길어져 서버가 잠시 멈춘 경우: 이어서 진행
             messages = [...messages, { role: "assistant", content: final.content }];

@@ -95,6 +95,7 @@ export async function makeUser(tag, { consent = true } = {}) {
 async function removeUser(id) {
   // usage 는 사용자 삭제로 지워지지 않게(감사 기록) 되어 있어서 따로 지운다
   await admin.from("usage").delete().eq("user_id", id);
+  await admin.from("usage_daily").delete().eq("user_id", id);
   await admin.from("payments").delete().eq("user_id", id);
   await admin.auth.admin.deleteUser(id);
 }

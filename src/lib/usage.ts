@@ -43,12 +43,14 @@ export function costOf(model: string, u: ApiUsage): number {
 }
 
 /** 한국 날짜 YYYY-MM-DD. 서버가 어느 나라에 있든 자정 기준을 한국에 맞춘다. */
-function koreaDay(d = new Date()): string {
+export function koreaDay(d = new Date()): string {
   return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 /**
  * 응답 하나의 사용량을 저장한다. 사용자가 고치거나 지울 수 없도록 관리자 권한으로 쓴다.
+ * 날짜별 요약(usage_daily)은 DB 트리거가 같이 더한다 (0009).
+ * limitUsd 를 주면 그날 적용된 하루 한도를 요약에 남긴다 (나중에 한도가 바뀌어도 그날 % 가 그대로 보이게).
  * 실패해도 대화는 계속되게 오류를 삼킨다.
  */
 export async function recordUsage(
@@ -57,13 +59,16 @@ export async function recordUsage(
   model: string,
   u: ApiUsage | null | undefined,
   sessionId?: string,
+  limitUsd?: number,
 ) {
   if (!u) return;
-  const { error } = await createAdminClient()
+  const admin = createAdminClient();
+  const day = koreaDay();
+  const { error } = await admin
     .from("usage")
     .insert({
       user_id: userId,
-      day: koreaDay(),
+      day,
       kind,
       model,
       session_id: sessionId ?? null,
@@ -74,7 +79,14 @@ export async function recordUsage(
       searches: u.server_tool_use?.web_search_requests ?? 0,
       cost: costOf(model, u),
     });
-  if (error) console.error("usage record failed", error);
+  if (error) {
+    console.error("usage record failed", error);
+    return;
+  }
+  if (limitUsd !== undefined) {
+    const { error: limitError } = await admin.from("usage_daily").update({ limit_usd: limitUsd }).eq("user_id", userId).eq("day", day);
+    if (limitError) console.error("usage daily limit failed", limitError);
+  }
 }
 
 /** 화면에 내보내는 사용 현황. 금액과 모델 이름은 내보내지 않는다. */

@@ -119,8 +119,14 @@ export default function MyPage() {
             </span>
           </Link>
 
-          <Card title="오늘 사용량">
-            <div className="flex items-center gap-3">
+          <Link href="/usage" className="block rounded-3xl border border-line bg-white p-5 hover:bg-cream">
+            <span className="flex items-center justify-between pb-3">
+              <span className="font-display text-lg">오늘 사용량</span>
+              <span className="text-sm text-muted">
+                날짜별로 보기 <span aria-hidden>›</span>
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
               <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-line">
                 <span
                   className={`block h-full rounded-full ${me.usagePercent >= 80 ? "bg-accent" : "bg-teal"}`}
@@ -128,9 +134,9 @@ export default function MyPage() {
                 />
               </span>
               <span className="text-sm font-bold tabular-nums">{me.usagePercent}%</span>
-            </div>
-            <p className="pt-2 text-xs text-muted">하루에 나눌 수 있는 대화량 중 오늘 쓴 만큼이에요. 한국 시간 자정에 다시 채워져요.</p>
-          </Card>
+            </span>
+            <span className="block pt-2 text-xs text-muted">하루에 나눌 수 있는 대화량 중 오늘 쓴 만큼이에요. 한국 시간 자정에 다시 채워져요.</span>
+          </Link>
 
           <Card title="내 기록">
             <dl className="grid grid-cols-3 gap-2 text-center">

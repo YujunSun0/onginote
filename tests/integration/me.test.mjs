@@ -45,6 +45,7 @@ export default async function testMe() {
   check("확인 문구 없이 탈퇴 → 400", (await A.api("/api/me", "DELETE", {})).status === 400);
   check("틀린 문구 탈퇴 → 400", (await A.api("/api/me", "DELETE", { confirm: "탈퇴할게" })).status === 400);
   const { data: usageBefore } = await admin.from("usage").select("id").eq("user_id", A.id);
+  const { data: dailyBefore } = await admin.from("usage_daily").select("id").eq("user_id", A.id);
   const delRes = await fetch(B + "/api/me", { method: "DELETE", headers: { "Content-Type": "application/json", Cookie: A.cookieStr() }, body: JSON.stringify({ confirm: "탈퇴" }) });
   const del = { status: delRes.status, body: await delRes.json() };
   check("탈퇴 성공", del.status === 200, JSON.stringify(del.body));
@@ -59,6 +60,8 @@ export default async function testMe() {
   check("사진 삭제", (imgs ?? []).length === 0);
   const { data: kept } = await admin.from("usage").select("id, user_id").in("id", (usageBefore ?? []).map((u) => u.id));
   check("사용량 기록은 남고 계정 연결만 끊김", (usageBefore ?? []).length > 0 && kept.length === usageBefore.length && kept.every((u) => u.user_id === null), `${kept?.length}/${usageBefore?.length}`);
+  const { data: dailyKept } = await admin.from("usage_daily").select("id, user_id").in("id", (dailyBefore ?? []).map((u) => u.id));
+  check("날짜별 사용량도 남고 계정 연결만 끊김", (dailyBefore ?? []).length > 0 && dailyKept.length === dailyBefore.length && dailyKept.every((u) => u.user_id === null), `${dailyKept?.length}/${dailyBefore?.length}`);
   const hash = createHmac("sha256", process.env.ONGI_EMAIL_HASH_KEY).update(A.email).digest("hex");
   const { data: w } = await admin.from("withdrawn_emails").select("*").eq("email_hash", hash).maybeSingle();
   check("재가입 제한 기록 (해시)", Boolean(w));
@@ -76,6 +79,7 @@ export default async function testMe() {
   // 정리
   await admin.from("withdrawn_emails").delete().eq("email_hash", hash);
   await admin.from("usage").delete().in("id", (usageBefore ?? []).map((u) => u.id));
+  await admin.from("usage_daily").delete().in("id", (dailyBefore ?? []).map((u) => u.id));
   await admin.from("usage").delete().eq("user_id", Bu.id);
   await admin.auth.admin.deleteUser(Bu.id);
 }
