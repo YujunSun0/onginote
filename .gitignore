@@ -43,3 +43,6 @@ next-env.d.ts
 
 # 로컬 상담 데이터 (개인정보)
 /data
+
+# Playwright MCP (화면 확인용 스크린샷·로그)
+.playwright-mcp/
