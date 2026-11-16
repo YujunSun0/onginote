@@ -36,6 +36,7 @@ export default async function testMe() {
   const exj = await ex.json();
   check("내려받기 파일 첨부 헤더", (ex.headers.get("content-disposition") ?? "").startsWith("attachment"));
   check("내려받기에 내 기록", exj.persons?.length === 1 && exj.sessions?.[0]?.messages?.length >= (SKIP_AI ? 1 : 3), `msgs=${exj.sessions?.[0]?.messages?.length}`);
+  check("내려받기에 내 사용량 기록 (서버 권한으로 읽음)", (exj.usage ?? []).length >= 1, `usage=${exj.usage?.length}`);
   check("내려받기에 남의 기록·user_id 없음", !JSON.stringify(exj).includes("비밀비밀") && !JSON.stringify(exj).includes(Bu.id) && !("user_id" in (exj.persons?.[0] ?? {})));
   check("비로그인 내려받기 401", (await fetch(B + "/api/me/export")).status === 401);
   const cnt = (await A.api("/api/me")).body.counts;

@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { listReports, toView } from "@/lib/reports";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /** 내 기록 전체를 JSON 파일로 내려받는다 (개인정보 열람·이동 요청 대응). 사진은 파일 대신 저장 경로만 넣는다. */
 export async function GET() {
@@ -14,7 +15,8 @@ export async function GET() {
     sb.from("persons").select("*").eq("user_id", userId).order("created_at"),
     sb.from("sessions").select("*").eq("user_id", userId).order("created_at"),
     sb.from("messages").select("session_id, role, text, images, mode, sources, created_at").eq("user_id", userId).order("id"),
-    sb.from("usage").select("at, kind, model, cost").eq("user_id", userId).order("at"),
+    // 사용량은 사용자 권한으로 읽을 수 없어서(0010) 서버 권한으로 본인 것만 읽는다
+    createAdminClient().from("usage").select("at, kind, model, cost").eq("user_id", userId).order("at"),
   ]);
   const err = [profile, persons, sessions, messages, usage].find((r) => r.error)?.error;
   const reports = await listReports(auth.ctx);

@@ -59,6 +59,9 @@ export default async function testIsolation() {
   check("사용자가 usage 에 직접 쓰기 → 거부", Boolean(usageIns));
   const { error: usageDel, count } = await A.sb.from("usage").delete({ count: "exact" }).eq("user_id", A.id);
   check("사용자가 usage 지우기 → 0건", !usageDel && !count, `count=${count}`);
+  await admin.from("usage").insert({ user_id: A.id, day: "2026-01-01", kind: "chat", model: "x", cost: 0 });
+  const { data: usageRead } = await A.sb.from("usage").select("id, cost, model");
+  check("사용자가 본인 usage 직접 읽기 → 안 보임 (금액·모델)", (usageRead ?? []).length === 0, `rows=${usageRead?.length}`);
   const { data: dl } = await Bu.sb.storage.from("chat-images").download(img?.path ?? "x");
   check("B 가 A 사진 내려받기 → 실패", !dl);
   const { error: rpcErr } = await Bu.sb.rpc("usage_spent", { p_day: "2026-01-01", p_user: null });
