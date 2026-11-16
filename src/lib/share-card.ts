@@ -3,6 +3,7 @@
 import { CHARACTERS } from "./characters";
 import { josa } from "./format";
 import { LOVE_TYPES, WEATHERS, type RelationshipPreview, type ReportPreview } from "./report-types";
+import { RECAP_SEASON, TIME_BUCKETS, type RecapContent } from "./recap-types";
 import type { CharacterId } from "./types";
 
 /**
@@ -224,6 +225,98 @@ export async function drawRelationshipCard(content: RelationshipPreview, charact
   ctx.fillStyle = "#74645a";
   ctx.font = `36px ${display}`;
   ctx.fillText(`온기노트 · ${josa(CHARACTERS[characterId].name, "과", "와")} 함께한 상담으로 만든 리포트`, W / 2, H - 120);
+
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지를 만들지 못했어요."))), "image/png"));
+}
+
+/**
+ * 연말 결산 공유 카드. 숫자, 한 줄, 고민 주제만 넣는다 (사람 이름·상담 내용 없음).
+ */
+export async function drawRecapCard(content: RecapContent): Promise<Blob> {
+  const display = cssFont("--font-jua", "sans-serif");
+  const sans = cssFont("--font-noto", "sans-serif");
+  const s = content.stats;
+  const label = TIME_BUCKETS[s.topBucket].label;
+  await Promise.all([
+    document.fonts.load(`80px ${display}`, RECAP_SEASON.title + label + content.topics.map((t) => t.name).join("") + "0123456789개일"),
+    document.fonts.load(`700 40px ${sans}`, content.headline),
+  ]).catch(() => undefined);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const ACCENT = "#c4491b";
+
+  ctx.fillStyle = ACCENT;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#fff8f1";
+  roundRect(ctx, 64, 64, W - 128, H - 128, 56);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "#a63d14";
+  ctx.font = `44px ${display}`;
+  ctx.fillText(RECAP_SEASON.title, W / 2, 170);
+
+  const img = await loadImage(`/characters/${s.character.id}.png`);
+  if (img) ctx.drawImage(img, (W - 200) / 2, 200, 200, 200);
+
+  // 시간대 별명
+  ctx.font = `40px ${display}`;
+  const lw = ctx.measureText(label).width + 64;
+  ctx.fillStyle = "#ffe7d6";
+  roundRect(ctx, (W - lw) / 2, 430, lw, 72, 36);
+  ctx.fillStyle = "#a63d14";
+  ctx.fillText(label, W / 2, 480);
+
+  // 한 줄
+  ctx.fillStyle = "#2b1a12";
+  ctx.font = `700 52px ${sans}`;
+  const lines = wrap(ctx, content.headline, W - 260, 2);
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, 600 + i * 72));
+
+  // 숫자 세 칸
+  const top = 600 + lines.length * 72 + 30;
+  const cells: [string, string][] = [
+    [`${s.sessions}개`, "상담"],
+    [`${s.activeDays}일`, "대화한 날"],
+    [s.todos.total ? `${s.todos.done}개` : `${s.people}명`, s.todos.total ? "해본 일" : "이야기한 사람"],
+  ];
+  const cw = (W - 260 - 40) / 3;
+  cells.forEach(([v, k], i) => {
+    const x = 130 + i * (cw + 20);
+    ctx.fillStyle = "#ffe7d6";
+    roundRect(ctx, x, top, cw, 190, 32);
+    ctx.fillStyle = "#2b1a12";
+    ctx.font = `72px ${display}`;
+    ctx.fillText(v, x + cw / 2, top + 105);
+    ctx.fillStyle = "#74645a";
+    ctx.font = `500 28px ${sans}`;
+    ctx.fillText(k, x + cw / 2, top + 155);
+  });
+
+  // 고민 주제
+  if (content.topics.length) {
+    ctx.fillStyle = "#74645a";
+    ctx.font = `500 28px ${sans}`;
+    ctx.fillText("자주 나온 고민", W / 2, top + 260);
+    ctx.font = `40px ${display}`;
+    const chips = content.topics.map((t) => `#${t.name}`);
+    const widths = chips.map((c) => ctx.measureText(c).width + 60);
+    let x = (W - (widths.reduce((a, b) => a + b, 0) + 16 * (chips.length - 1))) / 2;
+    chips.forEach((c, i) => {
+      ctx.fillStyle = "#e3f0f0";
+      roundRect(ctx, x, top + 285, widths[i], 76, 38);
+      ctx.fillStyle = "#2f6f73";
+      ctx.fillText(c, x + widths[i] / 2, top + 337);
+      x += widths[i] + 16;
+    });
+  }
+
+  ctx.fillStyle = "#74645a";
+  ctx.font = `36px ${display}`;
+  ctx.fillText(`온기노트 · ${josa(CHARACTERS[s.character.id].name, "과", "와")} 함께한 첫 겨울`, W / 2, H - 120);
 
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지를 만들지 못했어요."))), "image/png"));
 }

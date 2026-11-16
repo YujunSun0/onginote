@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { RECAP_SEASON, recapState } from "@/lib/recap-types";
 import { REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
 
 interface Me {
@@ -118,6 +119,21 @@ export default function MyPage() {
               ›
             </span>
           </Link>
+
+          {recapState() !== "before" && (
+            <Link href="/recap" className="flex items-center gap-3 rounded-3xl border border-line bg-white p-5 hover:bg-cream">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach text-xl" aria-hidden>
+                ❄️
+              </span>
+              <span className="flex-1">
+                <span className="block font-display text-lg">{RECAP_SEASON.title}</span>
+                <span className="block text-sm text-ink-soft">온기노트와 함께한 첫 겨울 돌아보기 · 무료</span>
+              </span>
+              <span className="text-muted" aria-hidden>
+                ›
+              </span>
+            </Link>
+          )}
 
           <Link href="/usage" className="block rounded-3xl border border-line bg-white p-5 hover:bg-cream">
             <span className="flex items-center justify-between pb-3">

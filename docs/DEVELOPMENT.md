@@ -91,7 +91,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
-3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`, `0006_billing.sql`, `0007_session_counts.sql`, `0008_reports.sql`, `0009_usage_daily.sql`, `0010_usage_private.sql`, `0011_relationship_reports.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제, 결제, 상담 수 세기, 연애 성향 리포트, 날짜별 사용량 요약, 관계 흐름 리포트가 만들어집니다.
+3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`, `0006_billing.sql`, `0007_session_counts.sql`, `0008_reports.sql`, `0009_usage_daily.sql`, `0010_usage_private.sql`, `0011_relationship_reports.sql`, `0012_recap.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제, 결제, 상담 수 세기, 연애 성향 리포트, 날짜별 사용량 요약, 관계 흐름 리포트, 연말 결산이 만들어집니다.
 4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
 5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
    - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.
@@ -113,7 +113,8 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
 | `ONGI_FREE_CHAT_MODEL` | `claude-haiku-5-5` | 무료 요금제의 캐릭터 답변 모델 |
 | `ONGI_PLUS_CHAT_MODEL` | `claude-haiku-5-5` | Plus 요금제의 캐릭터 답변 모델. 기본은 무료와 같고, Plus는 양을 늘린다 |
 | `ONGI_ROUTER_MODEL` | `claude-haiku-5-5` | 모드 판단에 쓰는 모델 |
-| `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드와 프로필 물어보기에 쓰는 모델 |
+| `ONGI_LIGHT_MODEL` | `claude-haiku-5-5` | 정리 카드, 프로필 물어보기, 연말 결산에 쓰는 모델 |
+| `NEXT_PUBLIC_ONGI_RECAP_PREVIEW` | (없음) | `1` 이면 배포 환경에서도 연말 결산을 기간(12/15~1/31)과 상관없이 엽니다. 출시 전 확인용. 개발 서버(`npm run dev`)는 항상 열려 있습니다 |
 | `ONGI_FREE_DAILY_USD` / `ONGI_PLUS_DAILY_USD` | `0.1` / `0.5` | 1인 하루 사용 한도(달러). 화면에는 한도 대비 퍼센트로만 보입니다 |
 | `ONGI_FREE_DAILY_SEARCHES` / `ONGI_PLUS_DAILY_SEARCHES` | `3` / `20` | 하루 웹 검색 횟수 |
 | `ONGI_FREE_SESSION_MESSAGES` / `ONGI_PLUS_SESSION_MESSAGES` | `40` / `80` | 상담 하나에서 보낼 수 있는 내 메시지 수 |

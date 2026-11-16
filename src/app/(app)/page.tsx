@@ -10,6 +10,7 @@ import { PlusIcon } from "@/components/Icons";
 import { CHARACTERS } from "@/lib/characters";
 import { birthdayLabel, daysUntilBirthday, josa, relativeTime, todayLabel } from "@/lib/format";
 import { SummaryBadge } from "@/components/SummaryBadge";
+import { RECAP_SEASON, recapState } from "@/lib/recap-types";
 import { REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
 import type { CharacterId, FollowUp, Person, SummaryState } from "@/lib/types";
 
@@ -50,6 +51,22 @@ function ReportBanner({ summarized }: { summarized: number }) {
       <span className="text-muted" aria-hidden>
         ›
       </span>
+    </Link>
+  );
+}
+
+/** 연말 결산 기간(12/15 ~ 1/31)에만 보이는 배너 */
+function RecapBanner() {
+  return (
+    <Link href="/recap" className="mx-5 mt-4 flex items-center gap-3 rounded-[22px] bg-accent px-4 py-3.5 text-white hover:opacity-95 lg:mx-0 lg:mt-5">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-xl" aria-hidden>
+        ❄️
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold">{RECAP_SEASON.title}이 열렸어요</span>
+        <span className="block text-[13px] text-white/85">온기노트와 함께한 첫 겨울을 무료로 돌아봐요</span>
+      </span>
+      <span aria-hidden>›</span>
     </Link>
   );
 }
@@ -208,6 +225,7 @@ export default function Home() {
         )}
       </div>
       <InstallPrompt className="mx-5 mt-4 lg:mx-0 lg:mt-5" />
+      {now !== null && recapState(now) === "open" && <RecapBanner />}
       {now !== null && <ReportBanner summarized={sessions.filter((s) => s.summaryState && s.summaryState !== "none").length} />}
 
       <div className="lg:mt-7 lg:flex lg:gap-5">

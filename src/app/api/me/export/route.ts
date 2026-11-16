@@ -41,6 +41,10 @@ export async function GET() {
     sessions: (sessions.data ?? []).map((s) => ({ ...withoutUserId(s), messages: bySession.get(s.id) ?? [] })),
     // 결제 전 리포트는 화면과 같이 미리보기 부분만
     reports: reports.map((r) => {
+      if (r.kind === "recap") {
+        // 결산은 무료라 전체를 넣는다. 사람은 id 만 (이름은 인물 정보에 있다)
+        return { kind: "recap", createdAt: r.created_at, content: r.content };
+      }
       if (r.kind === "relationship") {
         const v = toRelationshipView(r as RelationshipRow, "mongle");
         return { kind: "relationship", personId: r.person_id, createdAt: v.createdAt, paid: v.paid, content: v.content };
