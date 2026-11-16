@@ -67,9 +67,9 @@ export function toView(row: ReportRow, characterId: CharacterId): ReportView {
 }
 
 /** 리포트를 만들 수 있는지: 처음은 정리한 상담 N개, 그 뒤로는 지난 리포트 이후 N개 더 */
-export function reportProgress(summarized: number, latestSourceCount: number | null) {
+export function reportProgress(summarized: number, latestSourceCount: number | null, unlock = REPORT_UNLOCK_SESSIONS) {
   const base = latestSourceCount ?? 0;
-  const need = REPORT_UNLOCK_SESSIONS - (summarized - base);
+  const need = unlock - (summarized - base);
   return { canCreate: need <= 0, remaining: Math.max(0, need), summarized };
 }
 
@@ -106,14 +106,25 @@ export async function latestReport({ userId }: Ctx): Promise<ReportRow | null> {
 }
 
 export async function getReport({ userId }: Ctx, id: string): Promise<ReportRow | null> {
-  const { data } = await createAdminClient().from("reports").select(REPORT_COLS).eq("id", id).eq("user_id", userId).maybeSingle();
+  const { data } = await createAdminClient().from("reports").select(REPORT_COLS).eq("id", id).eq("user_id", userId).eq("kind", "personality").maybeSingle();
   return (data as ReportRow | null) ?? null;
 }
 
-/** 내 리포트 전체 (내려받기용) */
-export async function listReports({ userId }: Ctx): Promise<ReportRow[]> {
-  const { data } = await createAdminClient().from("reports").select(REPORT_COLS).eq("user_id", userId).order("created_at");
-  return (data ?? []) as ReportRow[];
+/** 내 리포트 전체, 종류 상관없이 (내려받기용) */
+export async function listReports({ userId }: Ctx): Promise<(Omit<ReportRow, "content"> & { kind: string; person_id: string | null; content: unknown })[]> {
+  const { data } = await createAdminClient().from("reports").select(`${REPORT_COLS}, kind, person_id`).eq("user_id", userId).order("created_at");
+  return (data ?? []) as (Omit<ReportRow, "content"> & { kind: string; person_id: string | null; content: unknown })[];
+}
+
+/** 리포트 하나의 종류와 사람 (결제·영수증에서 어느 화면으로 돌아갈지) */
+export async function reportKindOf(userId: string, id: string): Promise<{ kind: "personality" | "relationship"; personId: string | null } | null> {
+  const { data } = await createAdminClient().from("reports").select("kind, person_id").eq("id", id).eq("user_id", userId).maybeSingle();
+  return data ? { kind: data.kind as "personality" | "relationship", personId: (data.person_id as string | null) ?? null } : null;
+}
+
+/** 리포트 화면 주소 */
+export function reportHref(kind: "personality" | "relationship", personId: string | null): string {
+  return kind === "relationship" && personId ? `/people/${personId}/report` : "/report";
 }
 
 /** 가장 많이 상담한 캐릭터 (정리된 상담 기준, 없으면 몽글) */

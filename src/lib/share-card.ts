@@ -2,7 +2,7 @@
 
 import { CHARACTERS } from "./characters";
 import { josa } from "./format";
-import { LOVE_TYPES, type ReportPreview } from "./report-types";
+import { LOVE_TYPES, WEATHERS, type RelationshipPreview, type ReportPreview } from "./report-types";
 import type { CharacterId } from "./types";
 
 /**
@@ -137,9 +137,100 @@ export async function drawShareCard(content: ReportPreview, characterId: Charact
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지를 만들지 못했어요."))), "image/png"));
 }
 
+/**
+ * 관계 흐름 공유 카드. 상대 이름과 상담 내용은 넣지 않는다: 관계(썸·연인 등), 한 줄, 마음 날씨 흐름, 키워드만.
+ */
+export async function drawRelationshipCard(content: RelationshipPreview, characterId: CharacterId, relation: string): Promise<Blob> {
+  const display = cssFont("--font-jua", "sans-serif");
+  const sans = cssFont("--font-noto", "sans-serif");
+  await Promise.all([
+    document.fonts.load(`80px ${display}`, "우리의 관계 흐름" + content.keywords.join("") + relation),
+    document.fonts.load(`700 40px ${sans}`, content.headline),
+    document.fonts.load(`400 30px ${sans}`, "0123456789/"),
+  ]).catch(() => undefined);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const TEAL = "#2f6f73";
+
+  ctx.fillStyle = TEAL;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#fff8f1";
+  roundRect(ctx, 64, 64, W - 128, H - 128, 56);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  const img = await loadImage(`/characters/${characterId}.png`);
+  if (img) ctx.drawImage(img, (W - 220) / 2, 120, 220, 220);
+
+  ctx.fillStyle = "#74645a";
+  ctx.font = `500 34px ${sans}`;
+  ctx.fillText("우리의 관계 흐름", W / 2, 400);
+
+  // 관계 칩
+  ctx.font = `40px ${display}`;
+  const rel = relation || "소중한 사람";
+  const relW = ctx.measureText(rel).width + 64;
+  ctx.fillStyle = TEAL;
+  roundRect(ctx, (W - relW) / 2, 430, relW, 72, 36);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(rel, W / 2, 480);
+
+  // 한 줄
+  ctx.fillStyle = "#2b1a12";
+  ctx.font = `700 50px ${sans}`;
+  const lines = wrap(ctx, content.headline, W - 260, 3);
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, 600 + i * 70));
+
+  // 마음 날씨: 상담마다 하나, 많으면 최근 8개
+  const days = content.weather.slice(-8);
+  const top = 600 + lines.length * 70 + 40;
+  ctx.fillStyle = "#ffe7d6";
+  roundRect(ctx, 130, top, W - 260, 230, 36);
+  ctx.fillStyle = "#74645a";
+  ctx.font = `500 28px ${sans}`;
+  ctx.fillText("상담할 때마다 내 마음 날씨", W / 2, top + 52);
+  if (days.length) {
+    const slot = (W - 300) / days.length;
+    days.forEach((d, i) => {
+      const cx = 150 + slot * (i + 0.5);
+      ctx.font = `${Math.min(76, slot * 0.72)}px sans-serif`;
+      ctx.fillText(WEATHERS[d.weather].emoji, cx, top + 150);
+      ctx.fillStyle = "#74645a";
+      ctx.font = `400 24px ${sans}`;
+      const [, m, dd] = d.date.split("-").map(Number);
+      ctx.fillText(`${m}/${dd}`, cx, top + 200);
+    });
+  }
+
+  // 키워드
+  ctx.font = `42px ${display}`;
+  const chips = content.keywords.slice(0, 3).map((k) => `#${k}`);
+  const pad = 34;
+  const gap = 18;
+  const widths = chips.map((c) => ctx.measureText(c).width + pad * 2);
+  let x = (W - (widths.reduce((a, b) => a + b, 0) + gap * (chips.length - 1))) / 2;
+  const chipY = top + 270;
+  chips.forEach((c, i) => {
+    ctx.fillStyle = "#e3f0f0";
+    roundRect(ctx, x, chipY, widths[i], 80, 40);
+    ctx.fillStyle = TEAL;
+    ctx.fillText(c, x + widths[i] / 2, chipY + 54);
+    x += widths[i] + gap;
+  });
+
+  ctx.fillStyle = "#74645a";
+  ctx.font = `36px ${display}`;
+  ctx.fillText(`온기노트 · ${josa(CHARACTERS[characterId].name, "과", "와")} 함께한 상담으로 만든 리포트`, W / 2, H - 120);
+
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지를 만들지 못했어요."))), "image/png"));
+}
+
 /** 휴대폰이면 공유 시트, 안 되면 이미지 저장 */
-export async function shareOrSave(blob: Blob, title: string): Promise<"shared" | "saved" | "canceled"> {
-  const file = new File([blob], "onginote-love-type.png", { type: "image/png" });
+export async function shareOrSave(blob: Blob, title: string, fileName = "onginote-love-type.png"): Promise<"shared" | "saved" | "canceled"> {
+  const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title });

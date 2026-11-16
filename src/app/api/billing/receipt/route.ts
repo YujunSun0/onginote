@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { PLUS_ORDER_NAME, REPORT_ORDER_NAME } from "@/lib/plans";
+import { reportHref, reportKindOf } from "@/lib/reports";
 
 /** 결제 한 건의 상세 (영수증 화면). 본인 결제만 보인다 (RLS). */
 export async function GET(req: Request) {
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   const [{ data: pay }, { data: sub }] = await Promise.all([
     sb
       .from("payments")
-      .select("order_id, kind, status, amount, period_start, period_end, card_label, receipt_url, approved_at, refunded_at")
+      .select("order_id, kind, status, amount, order_name, report_id, period_start, period_end, card_label, receipt_url, approved_at, refunded_at")
       .eq("order_id", orderId)
       .in("status", ["paid", "refunded"])
       .maybeSingle(),
@@ -20,5 +21,14 @@ export async function GET(req: Request) {
   // 이 결제가 지금 기간의 결제이고 자동 결제 중이면 다음 결제일을 같이 보여준다
   const nextBillingAt =
     pay.status === "paid" && sub?.status === "active" && !!pay.period_end && new Date(sub.current_period_end).getTime() === new Date(pay.period_end).getTime() ? sub.current_period_end : null;
-  return Response.json({ ...pay, orderName: pay.kind === "report" ? REPORT_ORDER_NAME : PLUS_ORDER_NAME, nextBillingAt });
+  // 리포트 결제면 그 리포트 화면 주소 (사람을 지워서 리포트가 없으면 null)
+  let reportLink: string | null = null;
+  if (pay.kind === "report" && pay.report_id) {
+    const k = await reportKindOf(auth.ctx.userId, pay.report_id as string);
+    reportLink = k ? reportHref(k.kind, k.personId) : null;
+  }
+  const { report_id: _reportId, order_name, ...rest } = pay;
+  void _reportId;
+  const orderName = order_name ?? (pay.kind === "report" ? REPORT_ORDER_NAME : PLUS_ORDER_NAME);
+  return Response.json({ ...rest, orderName, reportLink, nextBillingAt });
 }

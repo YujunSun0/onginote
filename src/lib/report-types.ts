@@ -53,3 +53,52 @@ export interface ReportView {
 export function isFullReport(c: ReportPreview | PersonalityReport): c is PersonalityReport {
   return "values" in c;
 }
+
+// ─────────────────────────────────────────────
+// 관계 흐름 리포트 (사람 한 명). 상대를 진단하지 않고, 그 사람과 상담할 때 "내 마음"이 어땠는지로 흐름을 본다.
+// ─────────────────────────────────────────────
+export const RELATIONSHIP_UNLOCK_SESSIONS = 3;
+
+/** 상담마다의 내 마음 날씨. 상대가 아니라 사용자의 기분이다 */
+export const WEATHERS = {
+  sunny: { emoji: "☀️", name: "맑음" },
+  partly: { emoji: "🌤️", name: "구름 조금" },
+  cloudy: { emoji: "☁️", name: "흐림" },
+  rainy: { emoji: "🌧️", name: "비" },
+  stormy: { emoji: "⛈️", name: "천둥" },
+} as const;
+export type WeatherId = keyof typeof WEATHERS;
+export const WEATHER_IDS = Object.keys(WEATHERS) as [WeatherId, ...WeatherId[]];
+
+/** 결제 전에 보여주는 부분: 한 줄, 키워드, 마음 날씨 흐름 (공유 카드에 들어가는 것) */
+export interface RelationshipPreview {
+  headline: string;
+  keywords: string[];
+  /** 상담 하나에 하나, 오래된 순. date 는 서버가 상담 날짜로 채운다 (YYYY-MM-DD, 한국) */
+  weather: { date: string; weather: WeatherId; note: string }[];
+}
+
+/** 결제 후 전체 */
+export interface RelationshipReport extends RelationshipPreview {
+  chapters: { title: string; period: string; desc: string; evidence: string }[];
+  recurring: { title: string; desc: string; evidence: string }[];
+  tried: { action: string; after: string }[];
+  /** 이 사람 앞에서의 나. differs 는 연애 성향 리포트가 있을 때만 (평소의 나와 다른 점) */
+  me: { desc: string; evidence: string; differs: string | null };
+  nextSteps: { title: string; desc: string }[];
+  characterNote: string;
+}
+
+export interface RelationshipView {
+  id: string;
+  paid: boolean;
+  createdAt: string;
+  sourceCount: number;
+  orderId: string | null;
+  content: RelationshipPreview | RelationshipReport;
+  characterId: CharacterId;
+}
+
+export function isFullRelationship(c: RelationshipPreview | RelationshipReport): c is RelationshipReport {
+  return "chapters" in c;
+}

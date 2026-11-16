@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { LegalDoc, Section } from "@/components/LegalDoc";
 import { OPERATOR } from "@/lib/legal";
-import { BILLING_MAX_RETRIES, PLUS_PRICE_KRW, REFUND_DAYS, REPORT_PRICE_KRW } from "@/lib/plans";
-import { REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
+import { BILLING_MAX_RETRIES, PLUS_PRICE_KRW, REFUND_DAYS, RELATIONSHIP_REPORT_PRICE_KRW, REPORT_PRICE_KRW } from "@/lib/plans";
+import { RELATIONSHIP_UNLOCK_SESSIONS, REPORT_UNLOCK_SESSIONS } from "@/lib/report-types";
 import { REJOIN_BLOCK_DAYS } from "@/lib/withdrawal";
 
 export const metadata = { title: "이용약관 · 온기노트" };
 
 const price = `${PLUS_PRICE_KRW.toLocaleString("ko-KR")}원`;
 const reportPrice = `${REPORT_PRICE_KRW.toLocaleString("ko-KR")}원`;
+const relationshipPrice = `${RELATIONSHIP_REPORT_PRICE_KRW.toLocaleString("ko-KR")}원`;
 
 export default function TermsPage() {
   return (
@@ -74,9 +75,11 @@ export default function TermsPage() {
             있으며, 동의하지 않은 이용자에게 바뀐 요금을 결제하지 않습니다.
           </li>
           <li>
-            &lsquo;나의 연애 성향 리포트&rsquo;(이하 &ldquo;리포트&rdquo;)는 구독과 별도로 한 번씩 결제하는 상품이며, 요금은 리포트 하나에 {reportPrice}(부가가치세
-            포함)입니다. 정리한 상담이 {REPORT_UNLOCK_SESSIONS}개 이상이면 리포트를 만들 수 있고, 결제 전에도 유형 카드와 첫 항목을 무료로 볼 수 있습니다.
-            결제는 결제대행사의 결제창에서 한 번 이뤄지며 자동으로 다시 결제되지 않습니다. 온기 패스 이용 여부와 상관없이 따로 결제합니다.
+            &lsquo;나의 연애 성향 리포트&rsquo;와 &lsquo;관계 흐름 리포트&rsquo;(이하 둘을 합쳐 &ldquo;리포트&rdquo;)는 구독과 별도로 한 번씩 결제하는
+            상품입니다. 나의 연애 성향 리포트는 하나에 {reportPrice}, 관계 흐름 리포트는 등록한 사람 한 명에 대한 리포트 하나에 {relationshipPrice}입니다(모두
+            부가가치세 포함). 나의 연애 성향 리포트는 정리한 상담이 {REPORT_UNLOCK_SESSIONS}개 이상이면, 관계 흐름 리포트는 그 사람과 정리한 상담이{" "}
+            {RELATIONSHIP_UNLOCK_SESSIONS}개 이상이면 만들 수 있고, 결제 전에도 일부를 무료로 볼 수 있습니다. 결제는 결제대행사의 결제창에서 한 번 이뤄지며
+            자동으로 다시 결제되지 않습니다. 온기 패스 이용 여부와 상관없이 따로 결제합니다.
           </li>
           <li>
             미성년자가 법정대리인의 동의 없이 결제한 경우, 미성년자 본인이나 법정대리인은 그 결제를 취소할 수 있습니다. 운영자는 결제 전에 이 내용을 알립니다.
@@ -99,7 +102,7 @@ export default function TermsPage() {
             청약철회가 제한됩니다. 운영자는 무료 요금제로 같은 서비스를 미리 써 볼 수 있게 하고, 결제 화면에서 이 내용을 알립니다.
           </li>
           <li>
-            리포트는 결제하는 즉시 전체 내용이 열리는 디지털 콘텐츠입니다. 운영자는 결제 전에 리포트의 일부(유형 카드와 첫 항목)를 무료로 보여 주고, 결제 화면에서
+            리포트는 결제하는 즉시 전체 내용이 열리는 디지털 콘텐츠입니다. 운영자는 결제 전에 리포트의 일부(나의 연애 성향 리포트는 유형 카드와 첫 항목, 관계 흐름 리포트는 한 줄 요약과 마음 날씨)를 무료로 보여 주고, 결제 화면에서
             청약철회가 제한된다는 사실을 알리고 동의를 받습니다. 따라서 결제 후에는 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조 제2항에 따라 청약철회가
             제한됩니다. 다만 결제했는데 리포트가 열리지 않는 등 운영자의 잘못이 있으면 전액 환불합니다.
           </li>

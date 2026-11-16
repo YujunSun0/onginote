@@ -18,6 +18,8 @@ interface Receipt {
   approved_at: string | null;
   refunded_at: string | null;
   nextBillingAt: string | null;
+  /** 리포트 결제면 그 리포트 화면 (지워졌으면 null) */
+  reportLink?: string | null;
 }
 
 function kst(iso: string | null | undefined) {
@@ -79,7 +81,7 @@ function ReceiptView() {
   return (
     <>
       {!isNew && (
-        <Link href={r.kind === "report" ? "/report" : "/plus"} aria-label={r.kind === "report" ? "리포트로" : "구독 정보로"} className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-peach">
+        <Link href={r.kind === "report" ? (r.reportLink ?? "/me") : "/plus"} aria-label={r.kind === "report" ? "리포트로" : "구독 정보로"} className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-peach">
           <BackIcon size={22} />
         </Link>
       )}
@@ -128,7 +130,7 @@ function ReceiptView() {
       </section>
 
       <p className="pt-3 text-center text-xs leading-relaxed text-muted">
-        {refunded ? "환불은 카드사에 따라 3~7일 걸릴 수 있어요." : r.kind === "report" ? "리포트는 마이페이지 > 나의 연애 성향 리포트에서 언제든 다시 볼 수 있어요." : "결제 내역은 마이페이지 > 구독 관리에서 언제든 볼 수 있어요."}
+        {refunded ? "환불은 카드사에 따라 3~7일 걸릴 수 있어요." : r.kind === "report" ? (r.reportLink ? "리포트는 언제든 다시 볼 수 있어요. 왼쪽 위 화살표를 누르면 리포트로 가요." : "리포트를 지워서 지금은 볼 수 없어요. 결제 기록은 남아 있어요.") : "결제 내역은 마이페이지 > 구독 관리에서 언제든 볼 수 있어요."}
       </p>
 
       {isNew ? (

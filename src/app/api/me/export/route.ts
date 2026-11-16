@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
-import { listReports, toView } from "@/lib/reports";
+import { type RelationshipRow, toRelationshipView } from "@/lib/relationship-reports";
+import { type ReportRow, listReports, toView } from "@/lib/reports";
 import { createAdminClient } from "@/lib/supabase/server";
 
 /** 내 기록 전체를 JSON 파일로 내려받는다 (개인정보 열람·이동 요청 대응). 사진은 파일 대신 저장 경로만 넣는다. */
@@ -40,8 +41,12 @@ export async function GET() {
     sessions: (sessions.data ?? []).map((s) => ({ ...withoutUserId(s), messages: bySession.get(s.id) ?? [] })),
     // 결제 전 리포트는 화면과 같이 미리보기 부분만
     reports: reports.map((r) => {
-      const v = toView(r, "mongle");
-      return { createdAt: v.createdAt, paid: v.paid, content: v.content };
+      if (r.kind === "relationship") {
+        const v = toRelationshipView(r as RelationshipRow, "mongle");
+        return { kind: "relationship", personId: r.person_id, createdAt: v.createdAt, paid: v.paid, content: v.content };
+      }
+      const v = toView(r as ReportRow, "mongle");
+      return { kind: "personality", createdAt: v.createdAt, paid: v.paid, content: v.content };
     }),
     usage: usage.data ?? [],
   };

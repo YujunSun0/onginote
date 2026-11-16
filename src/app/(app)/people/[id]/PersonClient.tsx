@@ -9,9 +9,51 @@ import { BackIcon, CakeIcon, LockIcon, XIcon } from "@/components/Icons";
 import { CHARACTERS } from "@/lib/characters";
 import { birthdayLabel, daysUntilBirthday, josa, relativeTime } from "@/lib/format";
 import { SummaryBadge } from "@/components/SummaryBadge";
+import { RELATIONSHIP_UNLOCK_SESSIONS } from "@/lib/report-types";
 import type { CharacterId, Person, SummaryState } from "@/lib/types";
 
 type ListField = "likes" | "dislikes" | "notes";
+interface ReportStatus {
+  canCreate: boolean;
+  remaining: number;
+  summarized: number;
+  has: boolean;
+  paid: boolean;
+  headline: string | null;
+}
+
+/** 관계 흐름 리포트로 가는 카드: 진행도 또는 리포트 한 줄 */
+function ReportCard({ personId, name, status }: { personId: string; name: string; status: ReportStatus }) {
+  const done = Math.min(status.summarized, RELATIONSHIP_UNLOCK_SESSIONS);
+  const sub = status.has
+    ? status.canCreate
+      ? "상담이 더 쌓였어요 · 새 리포트를 만들 수 있어요"
+      : (status.headline ?? "리포트 보기")
+    : status.canCreate
+      ? "정리한 상담이 모였어요 · 무료로 미리보기를 만들 수 있어요"
+      : `${josa(name, "과", "와")} 정리한 상담 ${done}/${RELATIONSHIP_UNLOCK_SESSIONS}개 · ${status.remaining}개 더 모이면 열려요`;
+  return (
+    <Link href={`/people/${personId}/report`} className="order-4 flex items-center gap-3 rounded-[22px] border border-line bg-white p-4.5 hover:bg-cream lg:order-none">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-bg text-xl" aria-hidden>
+        🌤️
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-[17px]">관계 흐름 리포트</span>
+        <span className="block text-sm text-ink-soft">{sub}</span>
+        {!status.has && (
+          <span className="mt-2 flex gap-1" aria-hidden>
+            {Array.from({ length: RELATIONSHIP_UNLOCK_SESSIONS }, (_, i) => (
+              <span key={i} className={`h-1.5 flex-1 rounded-full ${i < done ? "bg-teal" : "bg-line"}`} />
+            ))}
+          </span>
+        )}
+      </span>
+      <span className="text-muted" aria-hidden>
+        ›
+      </span>
+    </Link>
+  );
+}
 
 export default function PersonClient({ id }: { id: string }) {
   const router = useRouter();
@@ -20,6 +62,14 @@ export default function PersonClient({ id }: { id: string }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [report, setReport] = useState<ReportStatus | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/persons/${id}/report`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setReport({ ...j.progress, has: !!j.report, paid: !!j.report?.paid, headline: j.report?.content?.headline ?? null }))
+      .catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     fetch(`/api/persons/${id}`)
@@ -73,7 +123,9 @@ export default function PersonClient({ id }: { id: string }) {
 
   async function deleteAll() {
     if (!person) return;
-    if (!confirm(`${person.name}에 대한 프로필과 상담 기록을 모두 지울까요? 되돌릴 수 없어요.`)) return;
+    const what = report?.has ? "상담 기록, 관계 흐름 리포트를" : "상담 기록을";
+    const paidNote = report?.paid ? " 결제한 리포트도 지워져서 다시 볼 수 없어요." : "";
+    if (!confirm(`${person.name}에 대한 프로필과 ${what} 모두 지울까요? 되돌릴 수 없어요.${paidNote}`)) return;
     await fetch(`/api/persons/${id}`, { method: "DELETE" });
     router.push("/people");
   }
@@ -146,6 +198,7 @@ export default function PersonClient({ id }: { id: string }) {
         </form>
 
         <div className="contents lg:col-start-2 lg:row-start-2 lg:flex lg:flex-col lg:gap-4.5">
+        {report && <ReportCard personId={person.id} name={person.name} status={report} />}
         <Timeline className="order-4 lg:order-none" items={person.timeline} onChange={(timeline) => patch({ timeline })} />
 
         {sessions.length > 0 && (

@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { BillingError, confirmReportPayment } from "@/lib/billing";
+import { reportHref, reportKindOf } from "@/lib/reports";
 
 /** 결제 승인을 기다리는 시간 (초). 토스 권장 응답 대기 60초 */
 export const maxDuration = 120;
@@ -14,7 +15,9 @@ export async function POST(req: Request) {
   }
   try {
     const result = await confirmReportPayment(auth.ctx.userId, { paymentKey: body.paymentKey, orderId: body.orderId, amount: Number(body.amount) });
-    return Response.json(result);
+    const kind = await reportKindOf(auth.ctx.userId, result.reportId);
+    // 결제가 끝나면 그 리포트 화면으로 돌아간다
+    return Response.json({ ...result, href: kind ? reportHref(kind.kind, kind.personId) : "/report" });
   } catch (err) {
     if (err instanceof BillingError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
     console.error("report confirm failed", err);

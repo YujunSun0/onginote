@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { reportBackHref } from "@/lib/report-back";
 
 export default function ReportSuccessPage() {
   return (
@@ -35,7 +36,7 @@ function Finish() {
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "결제를 확인하지 못했어요.");
-        router.replace("/report");
+        router.replace(typeof j.href === "string" && j.href.startsWith("/") && !j.href.startsWith("//") ? j.href : "/report");
       })
       .catch((e) => setError(e instanceof Error ? e.message : "결제를 확인하지 못했어요."));
     window.history.replaceState(null, "", "/report/success");
@@ -46,7 +47,7 @@ function Finish() {
     <>
       <p className="font-display text-xl">결제를 마치지 못했어요</p>
       <p className="mt-2 max-w-sm text-sm text-ink-soft">{error}</p>
-      <Link href="/report" replace className="mt-6 flex h-12 items-center rounded-full bg-accent px-6 font-bold text-white">
+      <Link href={reportBackHref()} replace className="mt-6 flex h-12 items-center rounded-full bg-accent px-6 font-bold text-white">
         리포트로 돌아가기
       </Link>
     </>

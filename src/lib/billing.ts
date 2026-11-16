@@ -1,5 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { BILLING_MAX_RETRIES, PLUS_ORDER_NAME, PLUS_PRICE_KRW, REFUND_DAYS, REPORT_ORDER_NAME, REPORT_PRICE_KRW } from "./plans";
+import {
+  BILLING_MAX_RETRIES,
+  PLUS_ORDER_NAME,
+  PLUS_PRICE_KRW,
+  REFUND_DAYS,
+  RELATIONSHIP_REPORT_ORDER_NAME,
+  RELATIONSHIP_REPORT_PRICE_KRW,
+  REPORT_ORDER_NAME,
+  REPORT_PRICE_KRW,
+} from "./plans";
 import { createAdminClient } from "./supabase/server";
 
 /**
@@ -537,23 +546,32 @@ async function customerKeyFor(userId: string): Promise<string> {
   return customerKey;
 }
 
+/** 리포트 종류별 가격과 상품 이름 (서버만 정한다) */
+export function reportProduct(kind: string): { amount: number; orderName: string } {
+  return kind === "relationship"
+    ? { amount: RELATIONSHIP_REPORT_PRICE_KRW, orderName: RELATIONSHIP_REPORT_ORDER_NAME }
+    : { amount: REPORT_PRICE_KRW, orderName: REPORT_ORDER_NAME };
+}
+
 /** 결제창을 열기 전: 주문을 만든다 (금액은 서버가 정하고, 승인할 때 다시 확인한다) */
 export async function prepareReportPayment(userId: string, reportId: string) {
   const admin = createAdminClient();
-  const { data: report } = await admin.from("reports").select("id, user_id, paid_at").eq("id", reportId).maybeSingle();
+  const { data: report } = await admin.from("reports").select("id, user_id, kind, paid_at").eq("id", reportId).maybeSingle();
   if (!report || report.user_id !== userId) throw new BillingError("리포트를 찾을 수 없어요.", 404);
   if (report.paid_at) throw new BillingError("이미 결제한 리포트예요.", 409, "ALREADY_PAID");
+  const { amount, orderName } = reportProduct(report.kind as string);
   const orderId = `P-${shortId(userId)}-${Date.now().toString(36)}`;
   const { error } = await admin.from("payments").insert({
     user_id: userId,
     order_id: orderId,
     kind: "report",
     status: "pending",
-    amount: REPORT_PRICE_KRW,
+    amount,
+    order_name: orderName,
     report_id: reportId,
   });
   if (error) throw error;
-  return { orderId, amount: REPORT_PRICE_KRW, orderName: REPORT_ORDER_NAME, customerKey: await customerKeyFor(userId) };
+  return { orderId, amount, orderName, customerKey: await customerKeyFor(userId) };
 }
 
 /**

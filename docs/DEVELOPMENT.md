@@ -91,7 +91,7 @@ Node.js 20 이상, Claude API 키, Supabase 프로젝트가 필요합니다.
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - Secret key → `SUPABASE_SECRET_KEY` (서버 전용, 절대 공개하지 않습니다)
-3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`, `0006_billing.sql`, `0007_session_counts.sql`, `0008_reports.sql`, `0009_usage_daily.sql`, `0010_usage_private.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제, 결제, 상담 수 세기, 연애 성향 리포트, 날짜별 사용량 요약이 만들어집니다.
+3. SQL Editor에 `supabase/migrations/` 의 `0001_init.sql`, `0002_withdrawal.sql`, `0003_consent.sql`, `0004_message_sources.sql`, `0005_plans.sql`, `0006_billing.sql`, `0007_session_counts.sql`, `0008_reports.sql`, `0009_usage_daily.sql`, `0010_usage_private.sql`, `0011_relationship_reports.sql`을 차례로 통째로 붙여넣고 실행합니다. 테이블, RLS, 사진 저장소, 탈퇴 기록, 동의 기록, 검색 출처, 요금제, 결제, 상담 수 세기, 연애 성향 리포트, 날짜별 사용량 요약, 관계 흐름 리포트가 만들어집니다.
 4. Authentication → URL Configuration에서 Site URL을 `http://localhost:3000`으로, Redirect URLs에 `http://localhost:3000/auth/callback`을 추가합니다. 배포하면 실제 주소도 추가합니다.
 5. Authentication → Sign In / Providers에서 Google과 Kakao를 켭니다. 두 곳 모두 콜백 주소는 Supabase 화면에 나오는 `https://<프로젝트>.supabase.co/auth/v1/callback`을 씁니다.
    - **Google**: Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 OAuth 클라이언트 ID(웹 애플리케이션)를 만들고, 승인된 리디렉션 URI에 위 콜백 주소를 넣습니다. 클라이언트 ID와 보안 비밀을 Supabase에 붙여넣습니다.

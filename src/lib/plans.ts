@@ -69,6 +69,10 @@ export const PLUS_ORDER_NAME = "온기노트 온기 패스 1개월";
 /** 나의 연애 성향 리포트 단건 가격 (원, 부가세 포함) */
 export const REPORT_PRICE_KRW = 4900;
 export const REPORT_ORDER_NAME = "온기노트 나의 연애 성향 리포트";
+
+/** 관계 흐름 리포트 단건 가격 (원, 부가세 포함). 사람마다 따로 사서 연애 성향 리포트보다 낮게 (2026-11-16 결정) */
+export const RELATIONSHIP_REPORT_PRICE_KRW = 3900;
+export const RELATIONSHIP_REPORT_ORDER_NAME = "온기노트 관계 흐름 리포트";
 /** 결제 실패 후 다시 시도하는 횟수 (하루 한 번). 그동안은 온기 패스를 유지한다 */
 export const BILLING_MAX_RETRIES = 3;
 /** 결제 후 이 기간 안에 상담을 한 번도 하지 않았으면 전액 환불 */
